@@ -1,0 +1,19 @@
+# Deployment for the Unhallowed game server.
+# Joins the existing external "proxy" network so a reverse proxy (Caddy) can reach it by name
+# at unhallowed:5080. See deploy/DEPLOY.md for the full setup.
+name: unhallowed
+
+services:
+  unhallowed:
+    build: .
+    image: unhallowed-server
+    container_name: unhallowed
+    restart: unless-stopped
+    expose:
+      - "5080"
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true

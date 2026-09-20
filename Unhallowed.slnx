@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Unhallowed.Client/Unhallowed.Client.csproj" />
+    <Project Path="src/Unhallowed.Contracts/Unhallowed.Contracts.csproj" />
+    <Project Path="src/Unhallowed.Core/Unhallowed.Core.csproj" />
+    <Project Path="src/Unhallowed.Server/Unhallowed.Server.csproj" />
+  </Folder>
+</Solution>

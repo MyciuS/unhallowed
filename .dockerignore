@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.git/
+**/.idea/
+src/Unhallowed.Client/
+tests/
+docs/
+*.md

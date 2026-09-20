@@ -1,0 +1,28 @@
+## .NET
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+artifacts/
+
+## Rider / VS / VS Code
+.vs/
+.idea/
+.vscode/
+*.DotSettings.user
+
+## Local data
+*.db
+*.db-shm
+*.db-wal
+unhallowed.sqlite*
+
+## MagicDraw
+*.mdzip.bak
+*.lck
