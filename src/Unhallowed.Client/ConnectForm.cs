@@ -6,7 +6,7 @@ namespace Unhallowed.Client;
 /// <summary>Tiny launcher so several people can join the same lobby without editing any config.</summary>
 internal sealed class ConnectForm : Form
 {
-    private readonly TextBox _server = new() { Text = "http://localhost:5080" };
+    private readonly TextBox _server = new() { Text = "https://unhallowed.cubiq.lt" };
     private readonly TextBox _match = new() { Text = "default" };
     private readonly TextBox _name = new() { Text = Environment.UserName };
 
