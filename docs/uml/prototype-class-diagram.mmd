@@ -1,0 +1,145 @@
+classDiagram
+    direction LR
+
+    namespace Contracts {
+        class Protocol {
+            <<static>>
+            +string HubPath
+            +int TickRate
+            +int SnapshotRate
+            +int MaxPlayers
+            +float ArenaWidth
+            +float ArenaHeight
+            +float PlayerRadius
+        }
+        class JoinMatchRequest {
+            <<record>>
+            +string MatchCode
+            +string DisplayName
+        }
+        class MoveIntent {
+            <<record>>
+            +float X
+            +float Y
+        }
+        class MatchJoinedResponse {
+            <<record>>
+            +string MatchCode
+            +int PlayerId
+            +int Seat
+        }
+        class PlayerPresenceDto {
+            <<record>>
+            +int PlayerId
+            +string DisplayName
+            +int Seat
+        }
+        class PlayerSnapshotDto {
+            <<record>>
+            +int Id
+            +string DisplayName
+            +int Seat
+            +float X
+            +float Y
+        }
+        class WorldSnapshotDto {
+            <<record>>
+            +int Tick
+            +IReadOnlyList~PlayerSnapshotDto~ Players
+        }
+    }
+
+    namespace Core {
+        class Vec2 {
+            <<struct>>
+            +float X
+            +float Y
+            +Length() float
+            +Normalized() Vec2
+        }
+        class Player {
+            +int Id
+            +string DisplayName
+            +int Seat
+            +Vec2 Position
+            +Vec2 MoveIntent
+            +Update(dt, speed, arena, radius)
+        }
+        class World {
+            +int Tick
+            +MoveSpeed float
+            +AddPlayer(name, seat) Player
+            +RemovePlayer(id)
+            +SetMoveIntent(id, intent)
+            +Step(dt)
+        }
+    }
+
+    namespace Server {
+        class MatchManager {
+            +GetOrCreate(code) Match
+            +FindByConnection(connId) Match
+            +RemoveIfEmpty(code)
+        }
+        class Match {
+            +string Code
+            +World World
+            +Join(connId, name) MatchJoinedResponse
+            +Leave(connId) int
+            +PlayerIdFor(connId) int
+        }
+        class MatchHub {
+            <<SignalR Hub>>
+            +JoinMatch(req) MatchJoinedResponse
+            +SendMove(intent)
+            +LeaveMatch()
+            +OnDisconnectedAsync()
+        }
+        class MatchLoop {
+            <<BackgroundService>>
+            +ExecuteAsync()
+        }
+    }
+
+    namespace Client {
+        class GameForm {
+            <<WinForms Form>>
+            -SendInputAsync()
+            -OnPaint()
+        }
+        class GameClient {
+            +ConnectAsync(url, code, name)
+            +SendMoveAsync(x, y)
+            +Players
+            +ServerTick
+            +IsConnected
+        }
+        class SnapshotBuffer {
+            +Push(snapshot)
+            +GetInterpolated() IReadOnlyList~PlayerSnapshotDto~
+        }
+        class WorldRenderer {
+            +Render(graphics, players, ...)
+        }
+    }
+
+    World "1" *-- "0..4" Player : owns
+    Player --> Vec2 : position + intent
+    Match "1" *-- "1" World : authoritative
+    MatchManager "1" *-- "*" Match : hosts
+    MatchHub --> MatchManager
+    MatchLoop --> MatchManager
+    MatchLoop ..> MatchHub : broadcasts via IHubContext
+    WorldSnapshotDto "1" *-- "*" PlayerSnapshotDto
+
+    GameForm *-- GameClient
+    GameForm *-- WorldRenderer
+    GameClient *-- SnapshotBuffer
+    SnapshotBuffer o-- WorldSnapshotDto : buffers
+    WorldRenderer ..> PlayerSnapshotDto : draws
+
+    GameClient ..> JoinMatchRequest : sends
+    GameClient ..> MoveIntent : sends
+    MatchHub ..> MoveIntent : receives
+    MatchHub ..> WorldSnapshotDto : (via loop)
+    GameClient ..> MatchHub : SignalR / JSON / WebSocket

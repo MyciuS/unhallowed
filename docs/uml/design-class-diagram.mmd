@@ -1,0 +1,131 @@
+classDiagram
+    direction LR
+
+    class Game {
+        +int floorNumber
+        +Start()
+        +Update(dt)
+    }
+    class Player {
+        +string name
+        +Vec2 position
+        +int health
+        +int maxHealth
+        +int money
+        +int keys
+        +int bombs
+        +Move(direction)
+        +Shoot(direction) Projectile
+        +PickUp(item)
+        +Buy(shop, item)
+        +UseActiveItem()
+        +UseBomb()
+        +UnlockDoor(door)
+    }
+    class Character {
+        +string name
+        +int baseHealth
+        +float baseSpeed
+        +float baseDamage
+    }
+    class CharacterCatalog {
+        +GetAvailableCharacters() List~Character~
+    }
+
+    class Level {
+        +int number
+        +Room currentRoom
+    }
+    class LevelGenerator {
+        +Generate(number) Level
+    }
+    class Room {
+        +string id
+        +bool isCleared
+    }
+    class RoomGenerator {
+        +Generate() Room
+    }
+    class Door {
+        +bool isLocked
+        +Unlock(player)
+    }
+    class Enemy {
+        +Vec2 position
+        +int health
+        +TakeDamage(amount)
+        +Update(dt)
+    }
+    class EnemySpawner {
+        +Spawn(room) List~Enemy~
+    }
+    class Projectile {
+        +Vec2 position
+        +Vec2 direction
+        +int damage
+        +OnHit(enemy)
+    }
+    class Shop {
+        +Buy(player, item)
+    }
+
+    class Item {
+        <<abstract>>
+        +string name
+    }
+    class PassiveItem {
+        +Apply(player)
+    }
+    class ActiveItem {
+        +int charge
+        +Use(player)
+    }
+    class Consumable {
+        <<abstract>>
+    }
+    class Bomb {
+        +Explode(position)
+    }
+    class Key {
+        +Consume()
+    }
+    class Vec2 {
+        <<struct>>
+        +float X
+        +float Y
+    }
+
+    Item <|-- PassiveItem
+    Item <|-- ActiveItem
+    Item <|-- Consumable
+    Consumable <|-- Bomb
+    Consumable <|-- Key
+
+    Game "1" *-- "1..4" Player : co-op players
+    Game "1" *-- "1" Level : current
+    Game ..> LevelGenerator : uses
+    Game ..> CharacterCatalog : choose character
+
+    Player --> Character : plays as
+    Player --> Vec2 : position
+    Player "1" o-- "*" Item : inventory
+    Player "1" --> "0..1" ActiveItem : held
+    Player ..> Projectile : shoots
+    Player ..> Door : unlocks (spends Key)
+
+    CharacterCatalog ..> Character
+
+    LevelGenerator ..> Level
+    Level "1" *-- "*" Room : contains
+    RoomGenerator ..> Room
+    Room "1" *-- "*" Enemy
+    Room "1" *-- "*" Item : drops
+    Room "1" *-- "*" Door
+    Room ..> EnemySpawner
+    EnemySpawner ..> Enemy
+
+    Projectile ..> Enemy : hits / damages
+    Projectile --> Vec2
+    Enemy --> Vec2
+    Shop "1" o-- "*" Item : for sale
+    Shop ..> Player : sells to
