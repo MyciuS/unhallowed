@@ -18,6 +18,7 @@ artifacts/
 *.DotSettings.user
 
 ## Local data
+game.log
 *.db
 *.db-shm
 *.db-wal
