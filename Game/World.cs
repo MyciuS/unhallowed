@@ -57,9 +57,14 @@ public sealed class World
         float bestDist = float.MaxValue;
         foreach (var p in Players.Values)
         {
-            if (!p.Alive) continue;
+            if (!p.Alive)
+                continue;
             float d = Vector2.DistanceSquared(p.Pos, pos);
-            if (d < bestDist) { bestDist = d; best = p; }
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = p;
+            }
         }
         return best;
     }
@@ -79,7 +84,8 @@ public sealed class World
         _score.Reset();
         GameOver = false;
         StartFloor(1);
-        foreach (int id in ids) AddPlayer(id);
+        foreach (int id in ids)
+            AddPlayer(id);
     }
 
     private void StartFloor(int number)
@@ -91,7 +97,8 @@ public sealed class World
         foreach (var p in Players.Values)
         {
             // Reaching a new floor revives fallen co-op partners.
-            if (!p.Alive) p.Health = Math.Min(4, p.Stats.MaxHealth);
+            if (!p.Alive)
+                p.Health = Math.Min(4, p.Stats.MaxHealth);
             p.Pos = Room.Center + new Vector2((i++ - 1.5f) * 50, 60);
         }
         Events.Publish(new FloorStarted(Floor));
@@ -123,8 +130,10 @@ public sealed class World
     public void Update(float dt)
     {
         Tick++;
-        if (_messageTimer > 0 && (_messageTimer -= dt) <= 0) Message = "";
-        if (GameOver) return;
+        if (_messageTimer > 0 && (_messageTimer -= dt) <= 0)
+            Message = "";
+        if (GameOver)
+            return;
         _transitionCooldown -= dt;
 
         UpdatePlayers(dt);
@@ -151,11 +160,13 @@ public sealed class World
     {
         foreach (var p in Players.Values)
         {
-            if (!p.Alive) continue;
+            if (!p.Alive)
+                continue;
             p.Invuln = MathF.Max(0, p.Invuln - dt);
             p.FireCooldown -= dt;
 
-            var move = p.MoveIntent == Vector2.Zero ? Vector2.Zero : Vector2.Normalize(p.MoveIntent);
+            var move =
+                p.MoveIntent == Vector2.Zero ? Vector2.Zero : Vector2.Normalize(p.MoveIntent);
             // Slight acceleration so movement feels less robotic.
             p.Vel = Vector2.Lerp(p.Vel, move * p.Stats.Speed, MathF.Min(1, dt * 14));
             p.Pos = MoveBody(p.Pos, Player.Radius, p.Vel * dt, ignoreRocks: false);
@@ -168,7 +179,14 @@ public sealed class World
                 {
                     p.FireCooldown = p.Stats.FireDelay;
                     var vel = dir * p.Stats.ShotSpeed + p.Vel * 0.3f;
-                    SpawnTear(p.Pos + dir * 10, vel, p.Stats.Damage, p.Stats.TearSize, p.Stats.Range, fromEnemy: false);
+                    SpawnTear(
+                        p.Pos + dir * 10,
+                        vel,
+                        p.Stats.Damage,
+                        p.Stats.TearSize,
+                        p.Stats.Range,
+                        fromEnemy: false
+                    );
                 }
             }
             else if (move != Vector2.Zero)
@@ -180,7 +198,8 @@ public sealed class World
 
     private void UpdateEnemies(float dt)
     {
-        foreach (var e in Enemies) e.Update(this, dt);
+        foreach (var e in Enemies)
+            e.Update(this, dt);
 
         // Simple separation so enemies do not stack on top of each other.
         for (int i = 0; i < Enemies.Count; i++)
@@ -191,10 +210,13 @@ public sealed class World
             var d = b.Pos - a.Pos;
             float min = a.Radius + b.Radius;
             float len = d.Length();
-            if (len >= min || len < 0.001f) continue;
+            if (len >= min || len < 0.001f)
+                continue;
             var push = d / len * (min - len) * 0.5f;
-            if (!a.IsBoss) a.Pos = MoveBody(a.Pos, a.Radius, -push, a.Flying);
-            if (!b.IsBoss) b.Pos = MoveBody(b.Pos, b.Radius, push, b.Flying);
+            if (!a.IsBoss)
+                a.Pos = MoveBody(a.Pos, a.Radius, -push, a.Flying);
+            if (!b.IsBoss)
+                b.Pos = MoveBody(b.Pos, b.Radius, push, b.Flying);
         }
 
         // Contact damage.
@@ -212,7 +234,11 @@ public sealed class World
         {
             t.Pos += t.Vel * dt;
             t.Life -= dt;
-            if (t.Life <= 0 || IsSolid(t.Pos)) { t.Dead = true; continue; }
+            if (t.Life <= 0 || IsSolid(t.Pos))
+            {
+                t.Dead = true;
+                continue;
+            }
 
             if (t.FromEnemy)
             {
@@ -230,9 +256,11 @@ public sealed class World
             {
                 foreach (var e in Enemies)
                 {
-                    if (e.Dead || Vector2.Distance(e.Pos, t.Pos) >= e.Radius + t.Radius) continue;
+                    if (e.Dead || Vector2.Distance(e.Pos, t.Pos) >= e.Radius + t.Radius)
+                        continue;
                     e.TakeDamage(t.Damage);
-                    if (!e.IsBoss) e.Pos = MoveBody(e.Pos, e.Radius, Vector2.Normalize(t.Vel) * 10, e.Flying);
+                    if (!e.IsBoss)
+                        e.Pos = MoveBody(e.Pos, e.Radius, Vector2.Normalize(t.Vel) * 10, e.Flying);
                     t.Dead = true;
                     break;
                 }
@@ -241,7 +269,8 @@ public sealed class World
 
         for (int i = Enemies.Count - 1; i >= 0; i--)
         {
-            if (!Enemies[i].Dead) continue;
+            if (!Enemies[i].Dead)
+                continue;
             var dead = Enemies[i];
             Enemies.RemoveAt(i);
             Events.Publish(new EnemyKilled(dead));
@@ -257,7 +286,8 @@ public sealed class World
             var pickup = Room.Pickups[i];
             foreach (var p in Players.Values)
             {
-                if (!p.Alive || Vector2.Distance(p.Pos, pickup.Pos) > Player.Radius + pickup.Radius) continue;
+                if (!p.Alive || Vector2.Distance(p.Pos, pickup.Pos) > Player.Radius + pickup.Radius)
+                    continue;
                 switch (pickup.Kind)
                 {
                     case PickupKind.Heart when p.Health < p.Stats.MaxHealth:
@@ -282,21 +312,27 @@ public sealed class World
 
     private void CheckDoors()
     {
-        if (!Room.Cleared || _transitionCooldown > 0) return;
+        if (!Room.Cleared || _transitionCooldown > 0)
+            return;
         foreach (var p in Players.Values)
         {
-            if (!p.Alive) continue;
+            if (!p.Alive)
+                continue;
             Direction? exit = null;
             const float edge = Player.Radius + 2;
             if (MathF.Abs(p.Pos.X - Config.RoomW / 2f) < 40)
             {
-                if (p.Pos.Y <= edge && p.MoveIntent.Y < 0) exit = Direction.Up;
-                else if (p.Pos.Y >= Config.RoomH - edge && p.MoveIntent.Y > 0) exit = Direction.Down;
+                if (p.Pos.Y <= edge && p.MoveIntent.Y < 0)
+                    exit = Direction.Up;
+                else if (p.Pos.Y >= Config.RoomH - edge && p.MoveIntent.Y > 0)
+                    exit = Direction.Down;
             }
             if (MathF.Abs(p.Pos.Y - Config.RoomH / 2f) < 40)
             {
-                if (p.Pos.X <= edge && p.MoveIntent.X < 0) exit = Direction.Left;
-                else if (p.Pos.X >= Config.RoomW - edge && p.MoveIntent.X > 0) exit = Direction.Right;
+                if (p.Pos.X <= edge && p.MoveIntent.X < 0)
+                    exit = Direction.Left;
+                else if (p.Pos.X >= Config.RoomW - edge && p.MoveIntent.X > 0)
+                    exit = Direction.Right;
             }
             if (exit is { } dir && Room.HasDoor(dir) && Floor.Neighbor(Room, dir) is { } next)
             {
@@ -308,30 +344,60 @@ public sealed class World
 
     private void HurtPlayer(Player p, int amount)
     {
-        if (!p.TryDamage(amount)) return;
+        if (!p.TryDamage(amount))
+            return;
         Events.Publish(new PlayerHurt(p));
-        if (!p.Alive) Events.Publish(new PlayerDied(p));
+        if (!p.Alive)
+            Events.Publish(new PlayerDied(p));
     }
 
-    public void SpawnTear(Vector2 pos, Vector2 vel, float damage, float radius, float life, bool fromEnemy)
+    public void SpawnTear(
+        Vector2 pos,
+        Vector2 vel,
+        float damage,
+        float radius,
+        float life,
+        bool fromEnemy
+    )
     {
-        Tears.Add(new Tear { Pos = pos, Vel = vel, Damage = damage, Radius = radius, Life = life, FromEnemy = fromEnemy });
+        Tears.Add(
+            new Tear
+            {
+                Pos = pos,
+                Vel = vel,
+                Damage = damage,
+                Radius = radius,
+                Life = life,
+                FromEnemy = fromEnemy,
+            }
+        );
     }
 
     // ------------------------------------------------------------- collision
 
     private bool IsSolid(Vector2 pos) =>
-        pos.X < 0 || pos.Y < 0 || pos.X >= Config.RoomW || pos.Y >= Config.RoomH ||
-        Room.Rocks[(int)(pos.X / Config.Tile), (int)(pos.Y / Config.Tile)];
+        pos.X < 0
+        || pos.Y < 0
+        || pos.X >= Config.RoomW
+        || pos.Y >= Config.RoomH
+        || Room.Rocks[(int)(pos.X / Config.Tile), (int)(pos.Y / Config.Tile)];
 
     private bool HitsRock(Vector2 pos, float r)
     {
         r *= 0.85f; // a bit of leniency so bodies slide around corners
-        int x0 = (int)MathF.Floor((pos.X - r) / Config.Tile), x1 = (int)MathF.Floor((pos.X + r) / Config.Tile);
-        int y0 = (int)MathF.Floor((pos.Y - r) / Config.Tile), y1 = (int)MathF.Floor((pos.Y + r) / Config.Tile);
+        int x0 = (int)MathF.Floor((pos.X - r) / Config.Tile),
+            x1 = (int)MathF.Floor((pos.X + r) / Config.Tile);
+        int y0 = (int)MathF.Floor((pos.Y - r) / Config.Tile),
+            y1 = (int)MathF.Floor((pos.Y + r) / Config.Tile);
         for (int x = x0; x <= x1; x++)
         for (int y = y0; y <= y1; y++)
-            if (x >= 0 && y >= 0 && x < Config.RoomTilesW && y < Config.RoomTilesH && Room.Rocks[x, y])
+            if (
+                x >= 0
+                && y >= 0
+                && x < Config.RoomTilesW
+                && y < Config.RoomTilesH
+                && Room.Rocks[x, y]
+            )
                 return true;
         return false;
     }
@@ -340,9 +406,11 @@ public sealed class World
     public Vector2 MoveBody(Vector2 pos, float r, Vector2 delta, bool ignoreRocks)
     {
         var next = new Vector2(pos.X + delta.X, pos.Y);
-        if (!ignoreRocks && HitsRock(next, r)) next.X = pos.X;
+        if (!ignoreRocks && HitsRock(next, r))
+            next.X = pos.X;
         next.Y += delta.Y;
-        if (!ignoreRocks && HitsRock(next, r)) next.Y = pos.Y;
+        if (!ignoreRocks && HitsRock(next, r))
+            next.Y = pos.Y;
         next.X = Math.Clamp(next.X, r, Config.RoomW - r);
         next.Y = Math.Clamp(next.Y, r, Config.RoomH - r);
         return next;
@@ -363,46 +431,90 @@ public sealed class World
             Message = Message,
         };
         for (int d = 0; d < 4; d++)
-            if (Room.Doors[d]) s.DoorMask |= (byte)(1 << d);
+            if (Room.Doors[d])
+                s.DoorMask |= (byte)(1 << d);
         for (int x = 0; x < Config.RoomTilesW; x++)
         for (int y = 0; y < Config.RoomTilesH; y++)
-            if (Room.Rocks[x, y]) s.Rocks.Add((byte)(x + y * Config.RoomTilesW));
+            if (Room.Rocks[x, y])
+                s.Rocks.Add((byte)(x + y * Config.RoomTilesW));
 
         foreach (var p in Players.Values)
         {
-            s.Players.Add(new PlayerView
-            {
-                Id = (byte)p.Id,
-                X = (short)p.Pos.X, Y = (short)p.Pos.Y,
-                LookX = (sbyte)MathF.Round(p.LookDir.X), LookY = (sbyte)MathF.Round(p.LookDir.Y),
-                Health = (byte)p.Health, MaxHealth = (byte)p.Stats.MaxHealth,
-                Blink = p.Invuln > 0,
-                Damage = p.Stats.Damage, Speed = p.Stats.Speed, TearsPerSecond = 1f / p.Stats.FireDelay,
-                ItemCount = (byte)p.Items.Count,
-            });
+            s.Players.Add(
+                new PlayerView
+                {
+                    Id = (byte)p.Id,
+                    X = (short)p.Pos.X,
+                    Y = (short)p.Pos.Y,
+                    LookX = (sbyte)MathF.Round(p.LookDir.X),
+                    LookY = (sbyte)MathF.Round(p.LookDir.Y),
+                    Health = (byte)p.Health,
+                    MaxHealth = (byte)p.Stats.MaxHealth,
+                    Blink = p.Invuln > 0,
+                    Damage = p.Stats.Damage,
+                    Speed = p.Stats.Speed,
+                    TearsPerSecond = 1f / p.Stats.FireDelay,
+                    ItemCount = (byte)p.Items.Count,
+                }
+            );
         }
         foreach (var e in Enemies)
         {
-            s.Enemies.Add(new EnemyView
-            {
-                Kind = e.Kind, X = (short)e.Pos.X, Y = (short)e.Pos.Y, Radius = (byte)e.Radius,
-                HpPercent = (byte)Math.Clamp(e.Hp / e.MaxHp * 100, 0, 100), Flash = e.HitFlash > 0,
-            });
+            s.Enemies.Add(
+                new EnemyView
+                {
+                    Kind = e.Kind,
+                    X = (short)e.Pos.X,
+                    Y = (short)e.Pos.Y,
+                    Radius = (byte)e.Radius,
+                    HpPercent = (byte)Math.Clamp(e.Hp / e.MaxHp * 100, 0, 100),
+                    Flash = e.HitFlash > 0,
+                }
+            );
         }
         foreach (var t in Tears)
-            s.Tears.Add(new TearView { X = (short)t.Pos.X, Y = (short)t.Pos.Y, Radius = (byte)t.Radius, FromEnemy = t.FromEnemy });
+            s.Tears.Add(
+                new TearView
+                {
+                    X = (short)t.Pos.X,
+                    Y = (short)t.Pos.Y,
+                    Radius = (byte)t.Radius,
+                    FromEnemy = t.FromEnemy,
+                }
+            );
         foreach (var pk in Room.Pickups)
-            s.Pickups.Add(new PickupView { Kind = pk.Kind, X = (short)pk.Pos.X, Y = (short)pk.Pos.Y, Item = pk.Item });
+            s.Pickups.Add(
+                new PickupView
+                {
+                    Kind = pk.Kind,
+                    X = (short)pk.Pos.X,
+                    Y = (short)pk.Pos.Y,
+                    Item = pk.Item,
+                }
+            );
 
         // Minimap: visited rooms plus their direct neighbours (as unexplored).
         foreach (var r in Floor.Rooms.Values)
         {
-            bool known = r.Visited || Enum.GetValues<Direction>().Any(d => Floor.Neighbor(r, d)?.Visited == true);
-            if (!known) continue;
+            bool known =
+                r.Visited
+                || Enum.GetValues<Direction>().Any(d => Floor.Neighbor(r, d)?.Visited == true);
+            if (!known)
+                continue;
             byte flags = 0;
-            if (r.Visited) flags |= MapCell.FlagVisited;
-            if (r == Room) flags |= MapCell.FlagCurrent;
-            s.Map.Add(new MapCell { X = (sbyte)r.GridX, Y = (sbyte)r.GridY, Kind = r.Kind, Flags = flags });
+            if (r.Visited)
+                flags |= MapCell.FlagVisited;
+            if (r == Room)
+                flags |= MapCell.FlagCurrent;
+            s.Map.Add(
+                new MapCell
+                {
+                    X = (sbyte)r.GridX,
+                    Y = (sbyte)r.GridY,
+                    Kind = r.Kind,
+                    Flags = flags,
+                }
+            );
         }
         return s;
     }

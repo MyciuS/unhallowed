@@ -7,14 +7,17 @@ namespace Isaac.Net;
 /// <summary>Names of the methods the host invokes on clients.</summary>
 public static class ClientMethods
 {
-    public const string Welcome = "Welcome";   // byte: your player id
+    public const string Welcome = "Welcome"; // byte: your player id
     public const string Snapshot = "Snapshot"; // byte[]: Snapshot.Write output
     public const string Rejected = "Rejected"; // string: reason
 }
 
 public abstract record HubEvent(string ConnectionId);
+
 public sealed record ClientJoined(string ConnectionId) : HubEvent(ConnectionId);
+
 public sealed record ClientLeft(string ConnectionId) : HubEvent(ConnectionId);
+
 public sealed record ClientInput(string ConnectionId, byte[] Data) : HubEvent(ConnectionId);
 
 /// <summary>
@@ -48,5 +51,6 @@ public sealed class GameHub(HubInbox inbox) : Hub
     }
 
     /// <summary>Called by clients every frame with their serialized <see cref="Isaac.Game.PlayerInput"/>.</summary>
-    public void Input(byte[] data) => inbox.Events.Enqueue(new ClientInput(Context.ConnectionId, data));
+    public void Input(byte[] data) =>
+        inbox.Events.Enqueue(new ClientInput(Context.ConnectionId, data));
 }
