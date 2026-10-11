@@ -1,7 +1,13 @@
+using Isaac.Core;
+
 namespace Isaac.Game.Items;
 
-/// <summary>Player stats. Picking up an item changes them directly.</summary>
-public sealed class Stats
+/// <summary>
+/// Player stats. Picking up an item changes them directly.
+/// PROTOTYPE pattern, a Concrete Prototype: a <see cref="Characters.Character"/> deep-copies
+/// its stats through <see cref="DeepClone"/>.
+/// </summary>
+public sealed class Stats : IPrototype<Stats>
 {
     public float Speed = 260f;      // pixels per second
     public float Damage = 3.5f;
@@ -10,6 +16,11 @@ public sealed class Stats
     public float Range = 0.75f;     // tear lifetime in seconds
     public float TearSize = 8f;     // radius in pixels
     public int MaxHealth = 6;       // in half hearts
+
+    public Stats ShallowClone() => (Stats)MemberwiseClone();
+
+    // Every field is a float or an int, so the shallow copy already shares nothing.
+    public Stats DeepClone() => ShallowClone();
 
     public void Apply(ItemKind item)
     {
