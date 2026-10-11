@@ -13,6 +13,7 @@ classDiagram
         +Stats Stats
         +List~ItemKind~ Items
         +Character(name string, stats Stats)
+        +Character(original Character)
         +AddItem(item ItemKind)
         +ShallowClone() Character
         +DeepClone() Character
@@ -35,7 +36,7 @@ classDiagram
         +Register(prototype Character)
         +Create(name string) Character
         +CreateForPlayer(playerId int) Character
-        -Clone(prototype Character)$ Character
+        -Clone(prototype IPrototype~Character~)$ Character
         +CreateDefault()$ CharacterRegistry
     }
     class World {
@@ -52,9 +53,20 @@ classDiagram
         +Player(id int, character Character)
         +GiveItem(item ItemKind)
     }
+    class Program {
+        +Main(args string[])$
+    }
+    class PatternDemos {
+        <<static>>
+        +Run(name string)$
+    }
     class PrototypeDemo {
         <<static>>
         +Run()$
+        -Compare(title string, copy Func)$
+        -CloneThroughInterface()$
+        -CompareSpeed()$
+        -AddressOf(o object)$ nint
     }
     IPrototype <|.. Character
     IPrototype <|.. Stats
@@ -63,5 +75,8 @@ classDiagram
     World --> CharacterRegistry : CreateForPlayer(id)
     World "1" *-- "0..4" Player
     Player "1" --> "1" Character : own deep clone
+    Program ..> PatternDemos : --demo prototype
+    PatternDemos ..> PrototypeDemo
     PrototypeDemo ..> CharacterRegistry
+    CharacterRegistry ..> IPrototype : clones through
     PrototypeDemo ..> Character
