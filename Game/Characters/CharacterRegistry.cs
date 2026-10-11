@@ -20,12 +20,14 @@ public sealed class CharacterRegistry
         Clone(_prototypes.First(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase)));
 
     /// <summary>Players get the characters in registration order: P1 the first, P2 the second, and so on.</summary>
-    public Character CreateForPlayer(int playerId) => Clone(_prototypes[playerId % _prototypes.Count]);
+
+    //public Character CreateForPlayer(int playerId) => Clone(_prototypes[playerId % _prototypes.Count]);
+    public Character CreateForPlayer(int playerId) => Clone(_prototypes[0]);
 
     // The one place that decides how characters are copied, and it only knows the Prototype
     // interface, not the concrete class. A shallow copy here would let a player's item pickups
     // leak into the prototype and into every player cloned after them.
-    private static Character Clone(IPrototype<Character> prototype) => prototype.DeepClone();
+    private static Character Clone(IPrototype<Character> prototype) => prototype.ShallowClone();
 
     public static CharacterRegistry CreateDefault()
     {
