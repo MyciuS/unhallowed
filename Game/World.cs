@@ -460,6 +460,7 @@ public sealed class World
                     Speed = p.Stats.Speed,
                     TearsPerSecond = 1f / p.Stats.FireDelay,
                     ItemCount = (byte)p.Items.Count,
+                    Character = p.Character.Name,
                 }
             );
         }
