@@ -1,5 +1,8 @@
+using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using Isaac.Core;
 using Isaac.Game.Characters;
 using Isaac.Game.Items;
 
@@ -18,6 +21,67 @@ public static class PrototypeDemo
         ShowRegistry();
         Compare("Shallow copy (MemberwiseClone)", c => c.ShallowClone());
         Compare("Deep copy", c => c.DeepClone());
+        CloneThroughInterface();
+        CompareSpeed();
+    }
+
+    private static void CloneThroughInterface()
+    {
+        Console.WriteLine();
+        Console.WriteLine("== Cloning through the Prototype interface ==");
+        Console.WriteLine("  the caller only has IPrototype<object> references and never names a concrete class");
+        IPrototype<object>[] prototypes = [new Character("Isaac", new Stats()), new Stats { Damage = 9f }];
+        foreach (var prototype in prototypes)
+        {
+            object copy = prototype.DeepClone();
+            Console.WriteLine($"  {prototype.GetType().Name,-10} -> the copy is a {copy.GetType().Name,-10} new object: {!ReferenceEquals(prototype, copy)}");
+        }
+    }
+
+    private static void CompareSpeed()
+    {
+        const int count = 50_000;
+        var prototype = new Character("Cain", new Stats { Speed = 300f, Damage = 3f });
+        prototype.AddItem(ItemKind.RangeUp);
+
+        Console.WriteLine();
+        Console.WriteLine($"== Speed: making {count:N0} copies ==");
+        Console.WriteLine($"  {"method",-38}{"best ms",10}{"ns / copy",12}{"bytes / copy",14}");
+        Measure("ShallowClone()  (MemberwiseClone)", count, () => prototype.ShallowClone());
+        Measure("DeepClone()     (prototype method)", count, () => prototype.DeepClone());
+        Measure("new Character(original)  (copy ctor)", count, () => new Character(prototype));
+        Measure("JSON serialize + deserialize", count, () => ThroughJson(prototype));
+    }
+
+    private static void Measure(string label, int count, Func<Character> copy)
+    {
+        // Repeat the run and keep the fastest, so JIT warm-up and the GC tuning itself to the
+        // allocation rate don't decide the result.
+        double bestMs = double.MaxValue;
+        long bytes = 0;
+        for (int round = 0; round < 5; round++)
+        {
+            long bytesBefore = GC.GetAllocatedBytesForCurrentThread();
+            var watch = Stopwatch.StartNew();
+            for (int i = 0; i < count; i++)
+                copy();
+            watch.Stop();
+            bytes = GC.GetAllocatedBytesForCurrentThread() - bytesBefore;
+            bestMs = Math.Min(bestMs, watch.Elapsed.TotalMilliseconds);
+        }
+        Console.WriteLine($"  {label,-38}{bestMs,10:0.0}{bestMs * 1_000_000 / count,12:0}{bytes / count,14}");
+    }
+
+    private sealed record CharacterData(string Name, Stats Stats, List<ItemKind> Items);
+
+    private static readonly JsonSerializerOptions Json = new() { IncludeFields = true };
+
+    // "Streaming": write the object out and read a brand-new one back.
+    private static Character ThroughJson(Character c)
+    {
+        string json = JsonSerializer.Serialize(new CharacterData(c.Name, c.Stats, c.Items), Json);
+        var data = JsonSerializer.Deserialize<CharacterData>(json, Json)!;
+        return new Character(data.Name, data.Stats, data.Items);
     }
 
     private static void ShowRegistry()
