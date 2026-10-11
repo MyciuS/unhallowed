@@ -137,7 +137,7 @@ public static class Renderer
             Raylib.DrawCircleV(pos + new Vector2(6, -5) + look, 4, eye);
         }
 
-        string label = $"P{p.Id + 1}";
+        string label = $"P{p.Id + 1} {p.Character}";
         int w = Raylib.MeasureText(label, 14);
         Raylib.DrawText(label, (int)pos.X - w / 2, (int)pos.Y - 40, 14, local ? Color.White : TextDim);
     }
