@@ -17,7 +17,17 @@ public sealed class Character : IPrototype<Character>
     {
     }
 
-    private Character(string name, Stats stats, List<ItemKind> items)
+    /// <summary>
+    /// Copy constructor: a deep copy of <paramref name="original"/>. Unlike <see cref="DeepClone"/>
+    /// the caller has to know the concrete class, so it cannot copy through <see cref="IPrototype{T}"/>.
+    /// </summary>
+    public Character(Character original)
+        : this(original.Name, original.Stats.DeepClone(), new List<ItemKind>(original.Items))
+    {
+    }
+
+    /// <summary>Rebuilds a character from parts whose item effects are already in <paramref name="stats"/>.</summary>
+    internal Character(string name, Stats stats, List<ItemKind> items)
     {
         Name = name;
         Stats = stats;
@@ -41,5 +51,5 @@ public sealed class Character : IPrototype<Character>
     /// Also copies the Stats and the item list. The name is shared on purpose: strings are
     /// immutable, so no one can change it through either copy.
     /// </summary>
-    public Character DeepClone() => new(Name, Stats.DeepClone(), new List<ItemKind>(Items));
+    public Character DeepClone() => new(this);
 }

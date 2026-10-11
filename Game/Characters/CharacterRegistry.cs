@@ -1,3 +1,4 @@
+using Isaac.Core;
 using Isaac.Game.Items;
 
 namespace Isaac.Game.Characters;
@@ -21,9 +22,10 @@ public sealed class CharacterRegistry
     /// <summary>Players get the characters in registration order: P1 the first, P2 the second, and so on.</summary>
     public Character CreateForPlayer(int playerId) => Clone(_prototypes[playerId % _prototypes.Count]);
 
-    // The one place that decides how characters are copied. A shallow copy here would let a
-    // player's item pickups leak into the prototype and into every player cloned after them.
-    private static Character Clone(Character prototype) => prototype.DeepClone();
+    // The one place that decides how characters are copied, and it only knows the Prototype
+    // interface, not the concrete class. A shallow copy here would let a player's item pickups
+    // leak into the prototype and into every player cloned after them.
+    private static Character Clone(IPrototype<Character> prototype) => prototype.DeepClone();
 
     public static CharacterRegistry CreateDefault()
     {
