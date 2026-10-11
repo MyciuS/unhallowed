@@ -26,6 +26,7 @@ if [[ ! -f "$WORK/Isaac-Coop-model.mdzip" ]]; then
 fi
 
 cp "$WORK/Isaac-Coop-model.mdzip" "$ROOT/docs/uml/"
+cp "$WORK/images/Isaac_Co-op_-_main_classes.png" "$ROOT/docs/uml/main-class-diagram.png"
 cp "$WORK/images/Isaac_Co-op_-_class_diagram.png" "$ROOT/docs/uml/game-class-diagram.png"
 cp "$WORK/images/Prototype_-_after.png" "$ROOT/docs/uml/prototype-after.png"
 cp "$WORK/images/Prototype_-_before.png" "$ROOT/docs/uml/prototype-before.png"

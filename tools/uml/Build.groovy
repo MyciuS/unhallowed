@@ -10,6 +10,8 @@ import com.nomagic.magicdraw.properties.BooleanProperty
 import com.nomagic.magicdraw.properties.PropertyID
 import com.nomagic.magicdraw.properties.PropertyManager
 import com.nomagic.magicdraw.uml.DiagramTypeConstants
+import com.nomagic.magicdraw.uml.symbols.CompartmentID
+import com.nomagic.magicdraw.uml.symbols.CompartmentManager
 import com.nomagic.magicdraw.uml.symbols.layout.Layouting
 import com.nomagic.uml2.ext.jmi.helpers.CoreHelper
 import com.nomagic.uml2.ext.jmi.helpers.ModelHelper
@@ -36,6 +38,7 @@ class Build extends CommandLine {
     Set<String> related = new HashSet<>()
     List<String> problems = []
     List structural = []   // [relationship, from, to]: generalizations, realizations, associations
+    List dependencies = [] // [usage, from, to]
 
     static final Map<String, AggregationKindEnum> AGGREGATION = [
         'Character.Stats'                : AggregationKindEnum.COMPOSITE,
@@ -84,15 +87,17 @@ class Build extends CommandLine {
         safe('registry clones through IPrototype') { usage('CharacterRegistry', 'IPrototype', false) }
         def before = buildBeforeModel()
 
+        def main = classDiagram(pkg('Isaac'), 'Isaac Co-op - main classes')
         def full = classDiagram(pkg('Isaac'), 'Isaac Co-op - class diagram')
         def after = classDiagram(pkg('Prototype pattern'), 'Prototype - after')
         def beforeDiagram = classDiagram(pkg('Prototype pattern'), 'Prototype - before')
+        safe('main diagram') { fillMainDiagram(main) }
         safe('full diagram') { fillFullDiagram(full, types) }
         safe('after diagram') { fillAfterDiagram(after) }
         safe('before diagram') { fillBeforeDiagram(beforeDiagram, before) }
         SessionManager.getInstance().closeSession(project)
 
-        [full, after, beforeDiagram].each { d -> safe("layout ${d.getHumanName()}") { d.open(); Layouting.layout(d) } }
+        [main, full, after, beforeDiagram].each { d -> safe("layout ${d.getHumanName()}") { d.open(); Layouting.layout(d) } }
 
         println "MODEL classifiers=${byName.size()} datatypes=${datatypes.size()} problems=${problems.size()}"
         problems.each { println "  PROBLEM: $it" }
@@ -103,7 +108,7 @@ class Build extends CommandLine {
 
         def images = new File(cfg.images)
         images.mkdirs()
-        [full, after, beforeDiagram].each { d ->
+        [main, full, after, beforeDiagram].each { d ->
             safe("image ${d.getName()}") {
                 ImageExporter.export(d, ImageExporter.PNG, new File(images, d.getName().replaceAll(/[^A-Za-z0-9-]+/, '_') + '.png'))
             }
@@ -229,6 +234,7 @@ class Build extends CommandLine {
         CoreHelper.setClientElement(u, byName[from])
         CoreHelper.setSupplierElement(u, byName[to])
         u.setOwner(byName[from].getOwner())
+        dependencies << [u, byName[from], byName[to]]
         if (create) {
             def st = StereotypesHelper.getStereotype(project, 'Create', null)
             if (st) StereotypesHelper.addStereotype(u, st) else u.setName('create')
@@ -297,6 +303,39 @@ class Build extends CommandLine {
         def view = project.getDiagram(d)
         view.open()
         view
+    }
+
+    static final List<String> MAIN_CLASSES = [
+        'IsaacGame', 'Menu', 'World', 'PlayerInput', 'EventBus',
+        'Player', 'Character', 'Stats', 'ItemKind',
+        'Enemy', 'Tear', 'Pickup', 'HeartPickup', 'ItemPickup', 'TrapdoorPickup',
+        'Floor', 'Room', 'RoomKind',
+        'IGameSession', 'HostSession', 'ClientSession', 'GameHub', 'Snapshot', 'Renderer',
+    ]
+
+    // The overview a reader actually needs: the main classes with only their public members.
+    // Private members stay in the model; they are just hidden on this diagram.
+    def fillMainDiagram(view) {
+        def shapes = [:]
+        MAIN_CLASSES.collect { byName[it] }.groupBy { it.getOwner() }.each { pkgEl, members ->
+            def frame = pem.createShapeElement(pkgEl, view)
+            members.each { m -> shapes[m] = pem.createShapeElement(m, frame, false) }
+        }
+        (structural + dependencies).each { rel, from, to ->
+            if (shapes[from] && shapes[to]) safe("main path ${from.getName()}->${to.getName()}") {
+                pem.createPathElement(rel, shapes[from], shapes[to])
+            }
+        }
+        shapes.each { el, shape ->
+            safe("hide members of ${el.getName()}") {
+                el.getOwnedAttribute().findAll { it.getVisibility() != VisibilityKindEnum.PUBLIC }
+                    .each { CompartmentManager.hideCompartmentElement(shape, CompartmentID.ATTRIBUTES, it) }
+            }
+            safe("hide operations of ${el.getName()}") {
+                el.getOwnedOperation().findAll { it.getVisibility() != VisibilityKindEnum.PUBLIC }
+                    .each { CompartmentManager.hideCompartmentElement(shape, CompartmentID.OPERATIONS, it) }
+            }
+        }
     }
 
     // The whole-game diagram draws only structure (inheritance, realization, association);
