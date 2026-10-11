@@ -10,10 +10,16 @@ public enum PickupKind : byte
     Trapdoor,  // leads to the next floor
 }
 
-public sealed class Pickup(PickupKind kind, Vector2 pos, ItemKind item = default)
+public abstract class Pickup(PickupKind kind, Vector2 pos, ItemKind item = default)
 {
     public PickupKind Kind { get; } = kind;
     public Vector2 Pos { get; } = pos;
     public ItemKind Item { get; } = item;
     public float Radius => Kind == PickupKind.Trapdoor ? 28f : 16f;
 }
+
+public sealed class HeartPickup(Vector2 pos) : Pickup(PickupKind.Heart, pos);
+
+public sealed class ItemPickup(Vector2 pos, ItemKind item) : Pickup(PickupKind.Item, pos, item);
+
+public sealed class TrapdoorPickup(Vector2 pos) : Pickup(PickupKind.Trapdoor, pos);

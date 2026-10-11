@@ -73,7 +73,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Only three patterns are implemented for now. The rest of the code is intentionally plain, so other
+Only five patterns are implemented for now. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -81,6 +81,8 @@ team members can add their own patterns.
 | **Singleton** | `Core/GameLogger.cs` | One thread-safe log for the whole program, reached through `GameLogger.Instance`. A private constructor and `Lazy<T>` make sure only one instance is created, and a lock keeps the game thread and SignalR threads from mixing up lines. Writes to the console and `game.log`. |
 | **Observer** | `Core/EventBus.cs`, `Game/Events.cs`, `Game/Listeners.cs` | `ScoreKeeper`, `Announcer`, `LootDropper` and `ActionLogger` react to world events without being coupled to the code that raises them |
 | **Builder** | `Game/Dungeon/` | `FloorDirector` (Director) runs the same steps (`Reset`, `BuildLayout`, `AssignRoomKinds`, `AddObstacles`, `AddEnemies`, `AddRewards`, `GetResult`) on an `IFloorBuilder` (Builder). `StandardFloorBuilder` and `BossRushFloorBuilder` (Concrete Builders) produce a `Floor` (Product). `World` (Client) picks the builder for each floor. |
+| **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushMonstroEnemy`). |
+| **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -91,7 +93,6 @@ Plain code that other patterns could replace:
 |---|---|
 | `IsaacGame` switches between the menu and the game with `if (_session == null)` | State |
 | `PlayerInput` is a plain struct of move and shoot directions | Command |
-| `Enemy` sets each kind's stats with a `switch` in its constructor | Factory Method / Abstract Factory |
 | `Enemy.Update` chooses movement and attacks with a `switch` on the kind, and the boss uses an `_enraged` flag | Strategy (and Composite for combined attacks) |
 | `Stats.Apply` changes the numbers directly when an item is picked up | Decorator |
 | `World.SpawnTear` allocates a new `Tear` for every shot | Object Pool |

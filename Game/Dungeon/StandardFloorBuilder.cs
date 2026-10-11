@@ -34,6 +34,7 @@ public sealed class StandardFloorBuilder(int? seed = null) : IFloorBuilder
     ];
 
     private readonly Random _rng = seed is { } s ? new Random(s) : new Random();
+    private readonly IEnemyFactory _enemyFactory = new StandardEnemyFactory();
     private int _number;
     private Dictionary<(int, int), Room> _rooms = FloorLayout.NewGrid();
 
@@ -85,7 +86,7 @@ public sealed class StandardFloorBuilder(int? seed = null) : IFloorBuilder
         foreach (var room in _rooms.Values)
         {
             if (room.Kind == RoomKind.Boss)
-                room.Spawns.Add((EnemyKind.Monstro, FloorLayout.BossSpawn));
+                room.Spawns.Add(new EnemySpawn(EnemyRole.Boss, FloorLayout.BossSpawn));
             else if (room.Kind == RoomKind.Normal)
                 AddRegularEnemies(room);
         }
@@ -97,7 +98,7 @@ public sealed class StandardFloorBuilder(int? seed = null) : IFloorBuilder
             room.Pickups.Add(FloorLayout.RandomItem(_rng));
     }
 
-    public Floor GetResult() => FloorLayout.Finish(_number, $"Floor {_number}", _rooms);
+    public Floor GetResult() => FloorLayout.Finish(_number, $"Floor {_number}", _rooms, _enemyFactory);
 
     /// <summary>Rooms with a single door, furthest from the start first.</summary>
     private List<Room> DeadEnds() =>
@@ -128,8 +129,9 @@ public sealed class StandardFloorBuilder(int? seed = null) : IFloorBuilder
             int idx = _rng.Next(free.Count);
             var (x, y) = free[idx];
             free.RemoveAt(idx);
-            var kind = Enemy.Regular[_rng.Next(Enemy.Regular.Length)];
-            room.Spawns.Add((kind, Room.TileCenter(x, y)));
+            var roles = _enemyFactory.RegularRoles;
+            var role = roles[_rng.Next(roles.Count)];
+            room.Spawns.Add(new EnemySpawn(role, Room.TileCenter(x, y)));
         }
     }
 }

@@ -40,7 +40,7 @@ public sealed class Room(int gx, int gy)
     public RoomKind Kind = RoomKind.Normal;
     public readonly bool[] Doors = new bool[4];
     public readonly bool[,] Rocks = new bool[Config.RoomTilesW, Config.RoomTilesH];
-    public readonly List<(EnemyKind Kind, Vector2 Pos)> Spawns = new();
+    public readonly List<EnemySpawn> Spawns = new();
     public readonly List<Pickup> Pickups = new();
     public bool Cleared;
     public bool Visited;
@@ -66,12 +66,18 @@ public sealed class Room(int gx, int gy)
 }
 
 /// <summary>BUILDER pattern, the Product: one floor of rooms, made by an <see cref="IFloorBuilder"/>.</summary>
-public sealed class Floor(int number, string title, Dictionary<(int, int), Room> rooms, Room start)
+public sealed class Floor(
+    int number,
+    string title,
+    Dictionary<(int, int), Room> rooms,
+    Room start,
+    IEnemyFactory enemyFactory)
 {
     public int Number { get; } = number;
     public string Title { get; } = title;
     public IReadOnlyDictionary<(int, int), Room> Rooms { get; } = rooms;
     public Room Start { get; } = start;
+    public IEnemyFactory EnemyFactory { get; } = enemyFactory;
 
     public Room? Neighbor(Room room, Direction d)
     {

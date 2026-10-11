@@ -10,6 +10,7 @@ namespace Isaac.Game.Dungeon;
 public sealed class BossRushFloorBuilder(int? seed = null) : IFloorBuilder
 {
     private readonly Random _rng = seed is { } s ? new Random(s) : new Random();
+    private readonly IEnemyFactory _enemyFactory = new BossRushEnemyFactory();
     private int _number;
     private Dictionary<(int, int), Room> _rooms = FloorLayout.NewGrid();
     private List<Room> _corridor = [];
@@ -60,7 +61,7 @@ public sealed class BossRushFloorBuilder(int? seed = null) : IFloorBuilder
     public void AddEnemies()
     {
         foreach (var room in _rooms.Values.Where(r => r.Kind == RoomKind.Boss))
-            room.Spawns.Add((EnemyKind.Monstro, FloorLayout.BossSpawn));
+            room.Spawns.Add(new EnemySpawn(EnemyRole.Boss, FloorLayout.BossSpawn));
     }
 
     public void AddRewards()
@@ -68,5 +69,5 @@ public sealed class BossRushFloorBuilder(int? seed = null) : IFloorBuilder
         _sideRoom?.Pickups.Add(FloorLayout.RandomItem(_rng));
     }
 
-    public Floor GetResult() => FloorLayout.Finish(_number, $"Floor {_number}: Boss Rush", _rooms);
+    public Floor GetResult() => FloorLayout.Finish(_number, $"Floor {_number}: Boss Rush", _rooms, _enemyFactory);
 }

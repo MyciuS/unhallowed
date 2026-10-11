@@ -1,0 +1,48 @@
+classDiagram
+    direction LR
+
+    class PickupFactory {
+        <<static>>
+        +CreateHeart(Vector2 pos) Pickup
+        +CreateTrapdoor(Vector2 pos) Pickup
+        +CreateItemPedestal(Vector2 pos, ItemKind item) Pickup
+        +CreateRandomItemPedestal(Vector2 pos, Random rng) Pickup
+    }
+
+    class Pickup {
+        <<abstract>>
+        +PickupKind Kind
+        +Vector2 Pos
+        +ItemKind Item
+        +float Radius
+    }
+
+    class HeartPickup
+    class ItemPickup
+    class TrapdoorPickup
+
+    class PickupKind {
+        <<enumeration>>
+        Heart
+        Item
+        Trapdoor
+    }
+
+    class FloorLayout {
+        <<static>>
+        +RandomItem(Random rng) Pickup
+    }
+
+    class LootDropper {
+        +LootDropper(EventBus events)
+    }
+
+    Pickup <|-- HeartPickup
+    Pickup <|-- ItemPickup
+    Pickup <|-- TrapdoorPickup
+    Pickup --> PickupKind : kind
+    PickupFactory ..> HeartPickup : creates
+    PickupFactory ..> ItemPickup : creates
+    PickupFactory ..> TrapdoorPickup : creates
+    FloorLayout ..> PickupFactory : asks for item pickup
+    LootDropper ..> PickupFactory : asks for rewards

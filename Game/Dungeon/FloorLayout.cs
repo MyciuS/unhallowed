@@ -1,6 +1,5 @@
 using System.Numerics;
 using Isaac.Game.Entities;
-using Isaac.Game.Items;
 
 namespace Isaac.Game.Dungeon;
 
@@ -35,12 +34,16 @@ internal static class FloorLayout
     }
 
     public static Pickup RandomItem(Random rng) =>
-        new(PickupKind.Item, Room.Center, ItemCatalog.All[rng.Next(ItemCatalog.All.Length)]);
+        PickupFactory.CreateRandomItemPedestal(Room.Center, rng);
 
     public static Vector2 BossSpawn => Room.Center + new Vector2(0, -60);
 
     /// <summary>Opens doors between neighbouring rooms and wraps the grid up as a <see cref="Floor"/>.</summary>
-    public static Floor Finish(int number, string title, Dictionary<(int, int), Room> rooms)
+    public static Floor Finish(
+        int number,
+        string title,
+        Dictionary<(int, int), Room> rooms,
+        IEnemyFactory enemyFactory)
     {
         foreach (var room in rooms.Values)
         {
@@ -54,6 +57,6 @@ internal static class FloorLayout
         }
         var start = rooms[(0, 0)];
         start.Visited = true;
-        return new Floor(number, title, rooms, start);
+        return new Floor(number, title, rooms, start, enemyFactory);
     }
 }

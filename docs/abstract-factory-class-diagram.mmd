@@ -1,0 +1,167 @@
+classDiagram
+    direction LR
+
+    class World {
+        +Floor Floor
+        +Room Room
+        +List~Enemy~ Enemies
+        -EnterRoom(Room room, Direction? enteredThrough)
+    }
+
+    class Floor {
+        +int Number
+        +string Title
+        +Room Start
+        +IEnemyFactory EnemyFactory
+        +Neighbor(Room room, Direction d) Room?
+        +BossRoomsLeft int
+    }
+
+    class Room {
+        +int GridX
+        +int GridY
+        +RoomKind Kind
+        +List~EnemySpawn~ Spawns
+        +List~Pickup~ Pickups
+        +bool Cleared
+        +bool Visited
+    }
+
+    class EnemySpawn {
+        <<record struct>>
+        +EnemyRole Role
+        +Vector2 Pos
+    }
+
+    class EnemyRole {
+        <<enumeration>>
+        Swarm
+        Chaser
+        Shooter
+        Rusher
+        Boss
+    }
+
+    class IEnemyFactory {
+        <<interface>>
+        +IReadOnlyList~EnemyRole~ RegularRoles
+        +CreateSwarmEnemy(Vector2 pos, int floor) Enemy
+        +CreateChaserEnemy(Vector2 pos, int floor) Enemy
+        +CreateShooterEnemy(Vector2 pos, int floor) Enemy
+        +CreateRusherEnemy(Vector2 pos, int floor) Enemy
+        +CreateBoss(Vector2 pos, int floor) Enemy
+    }
+
+    class StandardEnemyFactory {
+        +IReadOnlyList~EnemyRole~ RegularRoles
+        +CreateSwarmEnemy(Vector2 pos, int floor) Enemy
+        +CreateChaserEnemy(Vector2 pos, int floor) Enemy
+        +CreateShooterEnemy(Vector2 pos, int floor) Enemy
+        +CreateRusherEnemy(Vector2 pos, int floor) Enemy
+        +CreateBoss(Vector2 pos, int floor) Enemy
+    }
+
+    class BossRushEnemyFactory {
+        +IReadOnlyList~EnemyRole~ RegularRoles
+        +CreateSwarmEnemy(Vector2 pos, int floor) Enemy
+        +CreateChaserEnemy(Vector2 pos, int floor) Enemy
+        +CreateShooterEnemy(Vector2 pos, int floor) Enemy
+        +CreateRusherEnemy(Vector2 pos, int floor) Enemy
+        +CreateBoss(Vector2 pos, int floor) Enemy
+    }
+
+    class EnemyFactoryExtensions {
+        <<static>>
+        +Create(IEnemyFactory factory, EnemySpawn spawn, int floor) Enemy
+    }
+
+    class Enemy {
+        <<abstract>>
+        +EnemyKind Kind
+        +Vector2 Pos
+        +float Hp
+        +bool IsBoss
+        +Update(World world, float dt)
+    }
+
+    class FlyEnemy
+    class GaperEnemy
+    class SpitterEnemy
+    class ChargerEnemy
+    class MonstroEnemy
+    class BossRushFlyEnemy
+    class BossRushGaperEnemy
+    class BossRushSpitterEnemy
+    class BossRushMonstroEnemy
+
+    class EnemyKind {
+        <<enumeration>>
+        Fly
+        Gaper
+        Spitter
+        Charger
+        Monstro
+    }
+
+    class IFloorBuilder {
+        <<interface>>
+        +Reset(int floorNumber)
+        +BuildLayout()
+        +AssignRoomKinds()
+        +AddObstacles()
+        +AddEnemies()
+        +AddRewards()
+        +GetResult() Floor
+    }
+
+    class StandardFloorBuilder {
+        -IEnemyFactory enemyFactory
+        +AddEnemies()
+        +GetResult() Floor
+    }
+
+    class BossRushFloorBuilder {
+        -IEnemyFactory enemyFactory
+        +AddEnemies()
+        +GetResult() Floor
+    }
+
+    IFloorBuilder <|.. StandardFloorBuilder
+    IFloorBuilder <|.. BossRushFloorBuilder
+
+    IEnemyFactory <|.. StandardEnemyFactory
+    IEnemyFactory <|.. BossRushEnemyFactory
+
+    Enemy <|-- FlyEnemy
+    Enemy <|-- GaperEnemy
+    Enemy <|-- SpitterEnemy
+    Enemy <|-- ChargerEnemy
+    Enemy <|-- MonstroEnemy
+    FlyEnemy <|-- BossRushFlyEnemy
+    GaperEnemy <|-- BossRushGaperEnemy
+    SpitterEnemy <|-- BossRushSpitterEnemy
+    MonstroEnemy <|-- BossRushMonstroEnemy
+
+    World --> Floor : current floor
+    World --> Room : current room
+    World --> Enemy : creates on room entry
+    Floor *-- IEnemyFactory : enemy family
+    Floor *-- Room : rooms
+    Room *-- EnemySpawn : spawn plan
+    EnemySpawn --> EnemyRole : role
+    EnemyFactoryExtensions ..> IEnemyFactory : dispatches role
+    EnemyFactoryExtensions ..> EnemySpawn : reads
+    StandardEnemyFactory ..> FlyEnemy : creates
+    StandardEnemyFactory ..> GaperEnemy : creates
+    StandardEnemyFactory ..> SpitterEnemy : creates
+    StandardEnemyFactory ..> ChargerEnemy : creates
+    StandardEnemyFactory ..> MonstroEnemy : creates
+    BossRushEnemyFactory ..> BossRushFlyEnemy : creates
+    BossRushEnemyFactory ..> BossRushGaperEnemy : creates
+    BossRushEnemyFactory ..> BossRushSpitterEnemy : creates
+    BossRushEnemyFactory ..> BossRushMonstroEnemy : creates
+    Enemy --> EnemyKind : kind
+    StandardFloorBuilder *-- StandardEnemyFactory
+    BossRushFloorBuilder *-- BossRushEnemyFactory
+    StandardFloorBuilder ..> EnemySpawn : places roles
+    BossRushFloorBuilder ..> EnemySpawn : places roles

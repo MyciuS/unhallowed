@@ -11,7 +11,7 @@ public enum EnemyKind : byte
     Monstro, // boss
 }
 
-public sealed class Enemy
+public abstract class Enemy
 {
     public static readonly EnemyKind[] Regular = [EnemyKind.Fly, EnemyKind.Gaper, EnemyKind.Spitter, EnemyKind.Charger];
 
@@ -40,7 +40,7 @@ public sealed class Enemy
     private bool _enraged;                                                     // boss phase 2
 
     /// <summary>Health scales with the floor number.</summary>
-    public Enemy(EnemyKind kind, Vector2 pos, int floor)
+    protected Enemy(EnemyKind kind, Vector2 pos, int floor)
     {
         Kind = kind;
         Pos = pos;
@@ -212,5 +212,55 @@ public sealed class Enemy
             var dir = new Vector2(MathF.Cos(a), MathF.Sin(a));
             world.SpawnTear(Pos + dir * Radius, dir * tearSpeed, 1, 9f, 3f, fromEnemy: true);
         }
+    }
+}
+
+public class FlyEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Fly, pos, floor);
+
+public class GaperEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Gaper, pos, floor);
+
+public class SpitterEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Spitter, pos, floor);
+
+public class ChargerEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Charger, pos, floor);
+
+public class MonstroEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Monstro, pos, floor);
+
+public sealed class BossRushFlyEnemy : FlyEnemy
+{
+    public BossRushFlyEnemy(Vector2 pos, int floor) : base(pos, floor)
+    {
+        MaxHp *= 1.5f;
+        Hp = MaxHp;
+        Speed *= 1.1f;
+    }
+}
+
+public sealed class BossRushGaperEnemy : GaperEnemy
+{
+    public BossRushGaperEnemy(Vector2 pos, int floor) : base(pos, floor)
+    {
+        MaxHp *= 1.5f;
+        Hp = MaxHp;
+        Speed *= 1.1f;
+    }
+}
+
+public sealed class BossRushSpitterEnemy : SpitterEnemy
+{
+    public BossRushSpitterEnemy(Vector2 pos, int floor) : base(pos, floor)
+    {
+        MaxHp *= 1.5f;
+        Hp = MaxHp;
+        Speed *= 1.1f;
+    }
+}
+
+public sealed class BossRushMonstroEnemy : MonstroEnemy
+{
+    public BossRushMonstroEnemy(Vector2 pos, int floor) : base(pos, floor)
+    {
+        MaxHp *= 1.35f;
+        Hp = MaxHp;
+        Speed *= 1.15f;
     }
 }

@@ -57,14 +57,16 @@ public sealed class LootDropper
             // The trapdoor only appears after the floor's last boss (boss rush floors have several).
             if (room.Kind == RoomKind.Boss && e.Floor.BossRoomsLeft == 0)
             {
-                room.Pickups.Add(new Pickup(PickupKind.Trapdoor, Room.Center));
-                room.Pickups.Add(new Pickup(PickupKind.Item, Room.Center + new System.Numerics.Vector2(0, 110),
-                    ItemCatalog.All[Random.Shared.Next(ItemCatalog.All.Length)]));
+                room.Pickups.Add(PickupFactory.CreateTrapdoor(Room.Center));
+                room.Pickups.Add(
+                    PickupFactory.CreateRandomItemPedestal(
+                        Room.Center + new System.Numerics.Vector2(0, 110),
+                        Random.Shared));
             }
             else if (room.Kind == RoomKind.Boss || Random.Shared.NextSingle() < 0.4f)
             {
                 // Earlier bosses in a boss rush always leave a heart for the next fight.
-                room.Pickups.Add(new Pickup(PickupKind.Heart, Room.Center));
+                room.Pickups.Add(PickupFactory.CreateHeart(Room.Center));
             }
         });
     }

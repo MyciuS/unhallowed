@@ -111,8 +111,8 @@ public sealed class World
         Tears.Clear();
         Enemies.Clear();
         if (!room.Cleared)
-            foreach (var (kind, pos) in room.Spawns)
-                Enemies.Add(new Enemy(kind, pos, Floor.Number));
+            foreach (var spawn in room.Spawns)
+                Enemies.Add(Floor.EnemyFactory.Create(spawn, Floor.Number));
 
         if (enteredThrough is { } dir)
         {
