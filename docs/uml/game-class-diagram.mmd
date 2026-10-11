@@ -1,0 +1,404 @@
+---
+title: Isaac Co-op - class diagram of the game (packages = C# namespaces)
+---
+classDiagram
+    direction TB
+
+    namespace App {
+        class IsaacGame {
+            -Menu _menu
+            -IGameSession _session
+            -bool _quit
+            +StartSession(session IGameSession)
+            +ShowMenu(notice string)
+            +Run()
+            +Quit()
+            -UpdatePlaying(session IGameSession, dt float)
+        }
+        class Menu {
+            -string _address
+            -int _selected
+            -bool _editingAddress
+            +Update()
+            +Draw()
+            +CreateClient(address string)$ ClientSession
+        }
+    }
+
+    namespace Core {
+        class Config {
+            <<static>>
+            +int TickRate = 60
+            +int DefaultPort = 7777
+            +int MaxPlayers = 4
+            +int RoomW
+            +int RoomH
+            +string ConnectionKey
+        }
+        class GameLogger {
+            <<singleton>>
+            -Lazy~GameLogger~ LazyInstance$
+            -object _lock
+            -StreamWriter _file
+            +GameLogger Instance$
+            -GameLogger()
+            +Log(message string)
+        }
+        class EventBus {
+            -Dictionary~Type, List~ _handlers
+            +Subscribe~T~(handler Action)
+            +Unsubscribe~T~(handler Action)
+            +Publish~T~(evt T)
+        }
+        class IPrototype~T~ {
+            <<interface>>
+            +ShallowClone() T
+            +DeepClone() T
+        }
+    }
+
+    namespace Game {
+        class World {
+            -FloorDirector _director
+            -IFloorBuilder _standardBuilder
+            -IFloorBuilder _bossRushBuilder
+            -CharacterRegistry _characters
+            +EventBus Events
+            +Floor Floor
+            +Room Room
+            +Dictionary~int, Player~ Players
+            +List~Enemy~ Enemies
+            +List~Tear~ Tears
+            +uint Tick
+            +bool GameOver
+            +AddPlayer(id int) Player
+            +RemovePlayer(id int)
+            +Update(dt float)
+            +Restart()
+            +SpawnTear(pos, vel, damage, radius, life, fromEnemy)
+            +BuildSnapshot() Snapshot
+            -StartFloor(number int)
+            -EnterRoom(room Room, from Direction)
+        }
+        class PlayerInput {
+            <<struct>>
+            +Vector2 Move
+            +Vector2 Shoot
+            +ReadKeyboard()$ PlayerInput
+            +ApplyTo(player Player)
+            +Write(writer BinaryWriter)
+            +Read(reader BinaryReader)$ PlayerInput
+        }
+        class ScoreKeeper {
+            +int Score
+            +ScoreKeeper(events EventBus)
+            +Reset()
+        }
+        class Announcer {
+            -World _world
+            +Announcer(world World, events EventBus)
+        }
+        class LootDropper {
+            +LootDropper(events EventBus)
+        }
+        class ActionLogger {
+            +ActionLogger(events EventBus)
+        }
+    }
+
+    namespace Characters {
+        class Character {
+            +string Name
+            +Stats Stats
+            +List~ItemKind~ Items
+            +AddItem(item ItemKind)
+            +ShallowClone() Character
+            +DeepClone() Character
+        }
+        class CharacterRegistry {
+            -List~Character~ _prototypes
+            +Register(prototype Character)
+            +Create(name string) Character
+            +CreateForPlayer(playerId int) Character
+            +CreateDefault()$ CharacterRegistry
+        }
+    }
+
+    namespace Items {
+        class Stats {
+            +float Speed
+            +float Damage
+            +float FireDelay
+            +float ShotSpeed
+            +float Range
+            +float TearSize
+            +int MaxHealth
+            +Apply(item ItemKind)
+            +ShallowClone() Stats
+            +DeepClone() Stats
+        }
+        class ItemCatalog {
+            <<static>>
+            +ItemKind[] All$
+            +Name(kind ItemKind)$ string
+        }
+        class ItemKind {
+            <<enumeration>>
+            DamageUp
+            TearsUp
+            SpeedUp
+            RangeUp
+            HeartContainer
+            GlassCannon
+        }
+    }
+
+    namespace Entities {
+        class Player {
+            +int Id
+            +Character Character
+            +Vector2 Pos
+            +Vector2 Vel
+            +int Health
+            +float FireCooldown
+            +float Invuln
+            +Vector2 MoveIntent
+            +Vector2 ShootIntent
+            +bool Alive
+            +GiveItem(item ItemKind)
+            +TryDamage(halfHearts int) bool
+        }
+        class Tear {
+            +Vector2 Pos
+            +Vector2 Vel
+            +float Damage
+            +float Radius
+            +float Life
+            +bool FromEnemy
+            +bool Dead
+        }
+        class Enemy {
+            <<abstract>>
+            +EnemyKind Kind
+            +Vector2 Pos
+            +float Hp
+            +float MaxHp
+            +float Speed
+            +bool Flying
+            +bool IsBoss
+            +bool Dead
+            #Enemy(kind EnemyKind, pos Vector2, floor int)
+            +TakeDamage(amount float)
+            +Update(world World, dt float)
+        }
+        class FlyEnemy
+        class GaperEnemy
+        class SpitterEnemy
+        class ChargerEnemy
+        class MonstroEnemy
+        class BossRushFlyEnemy
+        class BossRushGaperEnemy
+        class BossRushSpitterEnemy
+        class BossRushMonstroEnemy
+        class IEnemyFactory {
+            <<interface>>
+            +RegularRoles IReadOnlyList
+            +CreateSwarmEnemy(pos Vector2, floor int) Enemy
+            +CreateChaserEnemy(pos Vector2, floor int) Enemy
+            +CreateShooterEnemy(pos Vector2, floor int) Enemy
+            +CreateRusherEnemy(pos Vector2, floor int) Enemy
+            +CreateBoss(pos Vector2, floor int) Enemy
+        }
+        class StandardEnemyFactory
+        class BossRushEnemyFactory
+        class Pickup {
+            <<abstract>>
+            +PickupKind Kind
+            +Vector2 Pos
+            +ItemKind Item
+            +float Radius
+        }
+        class HeartPickup
+        class ItemPickup
+        class TrapdoorPickup
+        class PickupFactory {
+            <<static>>
+            +CreateHeart(pos Vector2)$ Pickup
+            +CreateTrapdoor(pos Vector2)$ Pickup
+            +CreateItemPedestal(pos Vector2, item ItemKind)$ Pickup
+            +CreateRandomItemPedestal(pos Vector2, rng Random)$ Pickup
+        }
+    }
+
+    namespace Dungeon {
+        class Floor {
+            +int Number
+            +string Title
+            +Room Start
+            +IEnemyFactory EnemyFactory
+            +int BossRoomsLeft
+            +Neighbor(room Room, d Direction) Room
+        }
+        class Room {
+            +int GridX
+            +int GridY
+            +RoomKind Kind
+            +bool[] Doors
+            +bool[] Rocks
+            +List~EnemySpawn~ Spawns
+            +List~Pickup~ Pickups
+            +bool Cleared
+            +bool Visited
+            +HasDoor(d Direction) bool
+            +IsSolidTile(tx int, ty int) bool
+        }
+        class IFloorBuilder {
+            <<interface>>
+            +Reset(floorNumber int)
+            +BuildLayout()
+            +AssignRoomKinds()
+            +AddObstacles()
+            +AddEnemies()
+            +AddRewards()
+            +GetResult() Floor
+        }
+        class FloorDirector {
+            +Construct(builder IFloorBuilder, floorNumber int) Floor
+        }
+        class StandardFloorBuilder {
+            -Random _rng
+            -IEnemyFactory _enemyFactory
+            -int _number
+        }
+        class BossRushFloorBuilder {
+            -Random _rng
+            -IEnemyFactory _enemyFactory
+            -int _number
+            +int BossCount
+        }
+    }
+
+    namespace Net {
+        class IGameSession {
+            <<interface>>
+            +bool IsHost
+            +int LocalPlayerId
+            +Snapshot Latest
+            +Update(dt float, localInput PlayerInput)
+            +RequestRestart()
+        }
+        class HostSession {
+            -World _world
+            -WebApplication _server
+            -HubInbox _inbox
+            -Dictionary~string, RemotePlayer~ _remotes
+            +int RemotePlayers
+            +Update(dt float, localInput PlayerInput)
+            +RequestRestart()
+            -Handle(e HubEvent)
+        }
+        class ClientSession {
+            -HubConnection _connection
+            -Snapshot _latest
+            +Update(dt float, localInput PlayerInput)
+            -OnSnapshot(data byte[])
+        }
+        class GameHub {
+            +string Path$
+            +OnConnectedAsync() Task
+            +OnDisconnectedAsync(ex Exception) Task
+            +Input(data byte[])
+        }
+        class HubInbox {
+            +ConcurrentQueue~HubEvent~ Events
+        }
+        class Snapshot {
+            +uint Tick
+            +byte Floor
+            +int Score
+            +bool GameOver
+            +List~PlayerView~ Players
+            +List~EnemyView~ Enemies
+            +List~TearView~ Tears
+            +List~PickupView~ Pickups
+            +Write(w BinaryWriter)
+            +Read(r BinaryReader)$ Snapshot
+        }
+    }
+
+    namespace Rendering {
+        class Renderer {
+            <<static>>
+            +Draw(s Snapshot, localPlayerId int)$
+            +DrawCentered(text string, y int, size int, color Color)$
+        }
+    }
+
+    IsaacGame *-- Menu
+    IsaacGame o-- IGameSession
+    IsaacGame ..> Renderer
+    Menu ..> ClientSession : creates
+    Menu ..> HostSession : creates
+
+    IGameSession <|.. HostSession
+    IGameSession <|.. ClientSession
+    HostSession *-- World
+    HostSession *-- HubInbox
+    GameHub --> HubInbox : queues events
+    ClientSession ..> GameHub : SignalR
+    HostSession ..> Snapshot : sends
+    ClientSession --> Snapshot : latest
+    Renderer ..> Snapshot : draws
+    PlayerInput ..> Player : ApplyTo
+
+    World *-- EventBus
+    World *-- FloorDirector
+    World o-- IFloorBuilder
+    World *-- CharacterRegistry
+    World "1" *-- "0..4" Player
+    World *-- "*" Enemy
+    World *-- "*" Tear
+    World --> Floor
+    World ..> Snapshot : builds
+    ScoreKeeper ..> EventBus : subscribes
+    Announcer ..> EventBus : subscribes
+    LootDropper ..> EventBus : subscribes
+    ActionLogger ..> EventBus : subscribes
+    LootDropper ..> PickupFactory
+    ActionLogger ..> GameLogger
+
+    IPrototype <|.. Character
+    IPrototype <|.. Stats
+    CharacterRegistry o-- "*" Character : prototypes
+    Character *-- Stats
+    Character ..> ItemKind
+    Player --> Character : own clone
+    Stats ..> ItemKind
+    ItemCatalog ..> ItemKind
+
+    FloorDirector ..> IFloorBuilder
+    IFloorBuilder <|.. StandardFloorBuilder
+    IFloorBuilder <|.. BossRushFloorBuilder
+    IFloorBuilder ..> Floor : builds
+    StandardFloorBuilder --> IEnemyFactory
+    BossRushFloorBuilder --> IEnemyFactory
+    Floor "1" *-- "1..*" Room
+    Floor --> IEnemyFactory
+    Room *-- "*" Pickup
+
+    IEnemyFactory <|.. StandardEnemyFactory
+    IEnemyFactory <|.. BossRushEnemyFactory
+    IEnemyFactory ..> Enemy : creates
+    Enemy <|-- FlyEnemy
+    Enemy <|-- GaperEnemy
+    Enemy <|-- SpitterEnemy
+    Enemy <|-- ChargerEnemy
+    Enemy <|-- MonstroEnemy
+    FlyEnemy <|-- BossRushFlyEnemy
+    GaperEnemy <|-- BossRushGaperEnemy
+    SpitterEnemy <|-- BossRushSpitterEnemy
+    MonstroEnemy <|-- BossRushMonstroEnemy
+    Pickup <|-- HeartPickup
+    Pickup <|-- ItemPickup
+    Pickup <|-- TrapdoorPickup
+    PickupFactory ..> Pickup : creates

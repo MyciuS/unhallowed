@@ -1,0 +1,67 @@
+---
+title: Prototype - AFTER (players are cloned from character prototypes)
+---
+classDiagram
+    direction LR
+    class IPrototype~T~ {
+        <<interface>>
+        +ShallowClone() T
+        +DeepClone() T
+    }
+    class Character {
+        +string Name
+        +Stats Stats
+        +List~ItemKind~ Items
+        +Character(name string, stats Stats)
+        +AddItem(item ItemKind)
+        +ShallowClone() Character
+        +DeepClone() Character
+    }
+    class Stats {
+        +float Speed
+        +float Damage
+        +float FireDelay
+        +float ShotSpeed
+        +float Range
+        +float TearSize
+        +int MaxHealth
+        +Apply(item ItemKind)
+        +ShallowClone() Stats
+        +DeepClone() Stats
+    }
+    class CharacterRegistry {
+        -List~Character~ _prototypes
+        +int Count
+        +Register(prototype Character)
+        +Create(name string) Character
+        +CreateForPlayer(playerId int) Character
+        -Clone(prototype Character)$ Character
+        +CreateDefault()$ CharacterRegistry
+    }
+    class World {
+        -CharacterRegistry _characters
+        -Dictionary~int, Player~ Players
+        +AddPlayer(id int) Player
+        +Restart()
+    }
+    class Player {
+        +int Id
+        +Character Character
+        +Stats Stats
+        +List~ItemKind~ Items
+        +Player(id int, character Character)
+        +GiveItem(item ItemKind)
+    }
+    class PrototypeDemo {
+        <<static>>
+        +Run()$
+    }
+    IPrototype <|.. Character
+    IPrototype <|.. Stats
+    Character "1" *-- "1" Stats
+    CharacterRegistry "1" o-- "*" Character : prototypes
+    World --> CharacterRegistry : CreateForPlayer(id)
+    World "1" *-- "0..4" Player
+    Player "1" --> "1" Character : own deep clone
+    PrototypeDemo ..> CharacterRegistry
+    PrototypeDemo ..> Character
