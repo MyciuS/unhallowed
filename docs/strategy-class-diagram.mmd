@@ -1,0 +1,144 @@
+classDiagram
+    direction LR
+
+    class World {
+        +Room Room
+        +List~Enemy~ Enemies
+        +NearestPlayer(Vector2 pos) Player?
+        +SpawnTear(...)
+        +MoveBody(...) Vector2
+        +HasClearPath(Vector2 a, Vector2 b, float r) bool
+        +HasLineOfSight(Vector2 a, Vector2 b) bool
+    }
+
+    class Enemy {
+        <<abstract>>
+        +EnemyKind Kind
+        +Vector2 Pos
+        +Vector2 Vel
+        +float Speed
+        +float Height
+        +bool JustLanded
+        -IMovementStrategy movement
+        -IAttackStrategy[] attacks
+        +SetBehaviour(IMovementStrategy movement, IAttackStrategy[] attacks)
+        +TakeDamage(float amount)
+        #OnDamaged()
+        +Update(World world, float dt)
+    }
+
+    class FlyEnemy
+    class GaperEnemy
+    class SpitterEnemy
+    class ChargerEnemy
+    class SpiderEnemy
+    class MonstroEnemy {
+        -bool enraged
+        #OnDamaged()
+    }
+
+    class IMovementStrategy {
+        <<interface>>
+        +Move(Enemy self, Player? target, World world, float dt)
+    }
+
+    class ChaseMovement {
+        -PathFollower path
+    }
+    class TakeCoverMovement {
+        -KeepDistanceMovement exposed
+        -PathFollower path
+        -Vector2? cover
+    }
+    class JumpMovement {
+        -float restTime
+        -float airTime
+        -float maxDistance
+        -float jumpHeight
+    }
+    class SkitterMovement {
+        -float interval
+        -Vector2 dir
+    }
+    class PathFollower {
+        +Steer(World world, Vector2 pos, float radius, Vector2 goal) Vector2
+    }
+    class BuzzMovement {
+        -float phase
+    }
+    class KeepDistanceMovement {
+        -float preferred
+        -float strafeSign
+    }
+    class ChargeMovement {
+        -Vector2? dashDir
+        -float recover
+    }
+    class BounceMovement {
+        -float speedMultiplier
+        -Vector2 bounceDir
+    }
+
+    class IAttackStrategy {
+        <<interface>>
+        +Attack(Enemy self, Player? target, World world, float dt)
+    }
+
+    class AimedShotAttack {
+        -float cooldown
+        -float tearSpeed
+        -float timer
+    }
+    class LandingRingAttack {
+        -int count
+        -float tearSpeed
+    }
+    class SpitSprayAttack {
+        -int count
+        -float cooldown
+        -float spreadDegrees
+        -float timer
+    }
+
+    Enemy <|-- FlyEnemy
+    Enemy <|-- GaperEnemy
+    Enemy <|-- SpitterEnemy
+    Enemy <|-- ChargerEnemy
+    Enemy <|-- SpiderEnemy
+    Enemy <|-- MonstroEnemy
+
+    IMovementStrategy <|.. ChaseMovement
+    IMovementStrategy <|.. BuzzMovement
+    IMovementStrategy <|.. KeepDistanceMovement
+    IMovementStrategy <|.. ChargeMovement
+    IMovementStrategy <|.. BounceMovement
+    IMovementStrategy <|.. TakeCoverMovement
+    IMovementStrategy <|.. JumpMovement
+    IMovementStrategy <|.. SkitterMovement
+    ChaseMovement *-- PathFollower
+    TakeCoverMovement *-- PathFollower
+    TakeCoverMovement *-- KeepDistanceMovement : when exposed
+
+    IAttackStrategy <|.. AimedShotAttack
+    IAttackStrategy <|.. LandingRingAttack
+    IAttackStrategy <|.. SpitSprayAttack
+
+    Enemy o--> "1" IMovementStrategy : moves with
+    Enemy o--> "0..*" IAttackStrategy : attacks with
+    World --> Enemy : updates
+    AimedShotAttack ..> World : SpawnTear
+    LandingRingAttack ..> World : SpawnTear
+    SpitSprayAttack ..> World : SpawnTear
+    JumpMovement ..> LandingRingAttack : JustLanded
+
+    FlyEnemy ..> BuzzMovement : uses
+    GaperEnemy ..> ChaseMovement : uses
+    SpitterEnemy ..> TakeCoverMovement : uses
+    SpitterEnemy ..> AimedShotAttack : uses
+    ChargerEnemy ..> ChargeMovement : uses
+    SpiderEnemy ..> SkitterMovement : uses
+    MonstroEnemy ..> JumpMovement : phase 2 (SetBehaviour)
+    MonstroEnemy ..> LandingRingAttack : phase 2 (SetBehaviour)
+    MonstroEnemy ..> BounceMovement : phase 1
+    MonstroEnemy ..> SpitSprayAttack : phase 1
+    MonstroEnemy ..> AimedShotAttack : both phases

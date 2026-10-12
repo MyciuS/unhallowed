@@ -223,7 +223,8 @@ public sealed class World
         foreach (var e in Enemies)
         foreach (var p in Players.Values)
         {
-            if (Vector2.Distance(e.Pos, p.Pos) < e.Radius + Player.Radius - 4)
+            // A jumping enemy passes over players; it only hurts them on the ground.
+            if (e.Height == 0 && Vector2.Distance(e.Pos, p.Pos) < e.Radius + Player.Radius - 4)
                 HurtPlayer(p, e.IsBoss ? 2 : 1);
         }
     }
@@ -402,6 +403,19 @@ public sealed class World
         return false;
     }
 
+    /// <summary>True if a body of radius <paramref name="r"/> can travel in a straight line from a to b without touching a rock.</summary>
+    public bool HasClearPath(Vector2 a, Vector2 b, float r)
+    {
+        int steps = (int)(Vector2.Distance(a, b) / 8f) + 1;
+        for (int i = 0; i <= steps; i++)
+            if (HitsRock(Vector2.Lerp(a, b, i / (float)steps), r))
+                return false;
+        return true;
+    }
+
+    /// <summary>True if no rock blocks the straight line between a and b (used for aiming and hiding).</summary>
+    public bool HasLineOfSight(Vector2 a, Vector2 b) => HasClearPath(a, b, 0);
+
     /// <summary>Moves a circular body, resolving each axis separately against rocks and room walls.</summary>
     public Vector2 MoveBody(Vector2 pos, float r, Vector2 delta, bool ignoreRocks)
     {
@@ -469,6 +483,7 @@ public sealed class World
                     Radius = (byte)e.Radius,
                     HpPercent = (byte)Math.Clamp(e.Hp / e.MaxHp * 100, 0, 100),
                     Flash = e.HitFlash > 0,
+                    Height = (byte)Math.Clamp(e.Height, 0, 255),
                 }
             );
         }

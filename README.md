@@ -47,7 +47,8 @@ This command also works from Linux. Zip the `publish/win-x64` folder and send it
 - Every 3rd floor is a **Boss Rush**: a corridor of boss rooms (3 on floor 3, up to 5 later) with a treasure room
   next to the start. Each boss before the last one drops a heart.
 - Doors stay locked until every enemy in the room is dead. Cleared rooms can drop hearts.
-- Enemies: Fly, Gaper, Spitter (shoots), Charger (dashes) and the boss Monstro, which has two phases.
+- Enemies: Fly, Gaper (walks around rocks), Spitter (keeps a clear shot at you, ducks behind rocks when you approach), Charger (dashes until it hits a wall),
+  Spider (skitters at or around you) and the boss Monstro, which bounces around spitting sprays of tears, then enrages and hops around firing rings.
 - Items: Damage Up, Tears Up, Speed Up, Range Up, Heart Container, Glass Cannon.
 - After you beat the last boss, take the trapdoor to the next floor. Enemies get stronger and players who died come back.
 
@@ -73,7 +74,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Only five patterns are implemented for now. The rest of the code is intentionally plain, so other
+Only six patterns are implemented for now. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -81,8 +82,9 @@ team members can add their own patterns.
 | **Singleton** | `Core/GameLogger.cs` | One thread-safe log for the whole program, reached through `GameLogger.Instance`. A private constructor and `Lazy<T>` make sure only one instance is created, and a lock keeps the game thread and SignalR threads from mixing up lines. Writes to the console and `game.log`. |
 | **Observer** | `Core/EventBus.cs`, `Game/Events.cs`, `Game/Listeners.cs` | `ScoreKeeper`, `Announcer`, `LootDropper` and `ActionLogger` react to world events without being coupled to the code that raises them |
 | **Builder** | `Game/Dungeon/` | `FloorDirector` (Director) runs the same steps (`Reset`, `BuildLayout`, `AssignRoomKinds`, `AddObstacles`, `AddEnemies`, `AddRewards`, `GetResult`) on an `IFloorBuilder` (Builder). `StandardFloorBuilder` and `BossRushFloorBuilder` (Concrete Builders) produce a `Floor` (Product). `World` (Client) picks the builder for each floor. |
-| **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushMonstroEnemy`). |
+| **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateSkitterEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `SpiderEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushSpiderEnemy`, `BossRushMonstroEnemy`). |
 | **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
+| **Strategy** | `Game/AI/`, `Game/Entities/Enemy.cs` | `Enemy` (Context) delegates to an `IMovementStrategy` (`ChaseMovement`, `BuzzMovement`, `KeepDistanceMovement`, `TakeCoverMovement`, `ChargeMovement`, `BounceMovement`, `JumpMovement`, `SkitterMovement`) and a list of `IAttackStrategy` (`AimedShotAttack`, `LandingRingAttack`, `SpitSprayAttack`). Each enemy subclass picks its strategies in its constructor, and `SetBehaviour` swaps them at runtime: Monstro does this when it drops below half health to enter its enraged phase. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -93,16 +95,17 @@ Plain code that other patterns could replace:
 |---|---|
 | `IsaacGame` switches between the menu and the game with `if (_session == null)` | State |
 | `PlayerInput` is a plain struct of move and shoot directions | Command |
-| `Enemy.Update` chooses movement and attacks with a `switch` on the kind, and the boss uses an `_enraged` flag | Strategy (and Composite for combined attacks) |
+| `Enemy` runs a plain list of attack strategies | Composite (one `IAttackStrategy` made of several) |
 | `Stats.Apply` changes the numbers directly when an item is picked up | Decorator |
 | `World.SpawnTear` allocates a new `Tear` for every shot | Object Pool |
-| `HostSession` / `ClientSession` behind `IGameSession` | Strategy, Proxy |
+| `HostSession` / `ClientSession` behind `IGameSession` | Proxy |
 
 ## Project layout
 
 ```
 Core/        config, event bus and logger
 Game/        World simulation, player input, events and listeners
+  AI/        enemy movement and attack strategies, pathfinding around rocks
   Dungeon/   rooms, floor director and the two floor builders
   Entities/  player, enemies (with their AI), tears, pickups
   Items/     player stats and item catalog

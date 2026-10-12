@@ -22,6 +22,7 @@ public struct EnemyView
     public byte Radius;
     public byte HpPercent;
     public bool Flash;
+    public byte Height; // pixels above the ground
 }
 
 public struct TearView
@@ -94,7 +95,7 @@ public sealed class Snapshot
         w.Write((byte)Enemies.Count);
         foreach (var e in Enemies)
         {
-            w.Write((byte)e.Kind); w.Write(e.X); w.Write(e.Y); w.Write(e.Radius); w.Write(e.HpPercent); w.Write(e.Flash);
+            w.Write((byte)e.Kind); w.Write(e.X); w.Write(e.Y); w.Write(e.Radius); w.Write(e.HpPercent); w.Write(e.Flash); w.Write(e.Height);
         }
 
         int tearCount = Math.Min(Tears.Count, ushort.MaxValue);
@@ -149,7 +150,7 @@ public sealed class Snapshot
             s.Enemies.Add(new EnemyView
             {
                 Kind = (EnemyKind)r.ReadByte(), X = r.ReadInt16(), Y = r.ReadInt16(),
-                Radius = r.ReadByte(), HpPercent = r.ReadByte(), Flash = r.ReadBoolean(),
+                Radius = r.ReadByte(), HpPercent = r.ReadByte(), Flash = r.ReadBoolean(), Height = r.ReadByte(),
             });
         }
 

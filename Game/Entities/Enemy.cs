@@ -1,4 +1,5 @@
 using System.Numerics;
+using Isaac.Game.AI;
 
 namespace Isaac.Game.Entities;
 
@@ -8,12 +9,18 @@ public enum EnemyKind : byte
     Gaper,
     Spitter,
     Charger,
+    Spider,
     Monstro, // boss
 }
 
+/// <summary>
+/// STRATEGY pattern, the Context: an enemy does not know how it moves or attacks.
+/// It delegates to an <see cref="IMovementStrategy"/> and a list of <see cref="IAttackStrategy"/>,
+/// which each subclass picks and which can be swapped at runtime with <see cref="SetBehaviour"/>.
+/// </summary>
 public abstract class Enemy
 {
-    public static readonly EnemyKind[] Regular = [EnemyKind.Fly, EnemyKind.Gaper, EnemyKind.Spitter, EnemyKind.Charger];
+    public static readonly EnemyKind[] Regular = [EnemyKind.Fly, EnemyKind.Gaper, EnemyKind.Spitter, EnemyKind.Charger, EnemyKind.Spider];
 
     public EnemyKind Kind { get; }
     public Vector2 Pos;
@@ -24,23 +31,14 @@ public abstract class Enemy
     public float Speed;
     public bool Flying;       // ignores rocks
     public float HitFlash;
+    public float Height;      // how far above the ground it is drawn, e.g. mid-jump
+    public bool JustLanded;   // set for one frame when a jump ends
 
-    // Behaviour state. Each kind only uses some of these.
-    private float _phase = Random.Shared.NextSingle() * MathF.Tau;          // Fly wobble
-    private readonly float _strafeSign = Random.Shared.Next(2) == 0 ? -1 : 1; // Spitter
-    private Vector2 _dashDir;                                                  // Charger
-    private float _dashTime;
-    private Vector2 _wanderDir;
-    private float _wanderTime;
-    private Vector2 _bounceDir = Vector2.Normalize(new Vector2(1, 0.7f));     // enraged boss
-    private Vector2 _lastPos;
-    private float _shotTimer;
-    private float _burstTimer;
-    private float _burstRotation;
-    private bool _enraged;                                                     // boss phase 2
+    private IMovementStrategy _movement;
+    private IAttackStrategy[] _attacks;
 
     /// <summary>Health scales with the floor number.</summary>
-    protected Enemy(EnemyKind kind, Vector2 pos, int floor)
+    protected Enemy(EnemyKind kind, Vector2 pos, int floor, IMovementStrategy movement, params IAttackStrategy[] attacks)
     {
         Kind = kind;
         Pos = pos;
@@ -50,180 +48,95 @@ public abstract class Enemy
             EnemyKind.Gaper => (20f, 12f, 95f, false),
             EnemyKind.Spitter => (18f, 9f, 80f, false),
             EnemyKind.Charger => (18f, 10f, 90f, false),
+            EnemyKind.Spider => (14f, 6f, 130f, false), // 195 px per 1.5 s move
             EnemyKind.Monstro => (48f, 160f, 70f, false),
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         MaxHp *= 1f + (floor - 1) * 0.35f;
         Hp = MaxHp;
-        _shotTimer = (kind == EnemyKind.Spitter ? 1.8f : 1.1f) * (0.5f + Random.Shared.NextSingle());
-        _burstTimer = 2.2f;
+        _movement = movement;
+        _attacks = attacks;
     }
 
     public bool IsBoss => Kind == EnemyKind.Monstro;
     public bool Dead => Hp <= 0;
+    public IMovementStrategy Movement => _movement;
+    public IReadOnlyList<IAttackStrategy> Attacks => _attacks;
+
+    /// <summary>Replaces how this enemy moves and attacks.</summary>
+    public void SetBehaviour(IMovementStrategy movement, params IAttackStrategy[] attacks)
+    {
+        _movement = movement;
+        _attacks = attacks;
+        // A jump cut short by the swap must not leave the enemy hanging in the air.
+        Height = 0;
+    }
 
     public void TakeDamage(float amount)
     {
         Hp -= amount;
         HitFlash = 0.08f;
-        // Monstro gets faster and angrier below half health.
-        if (IsBoss && !_enraged && Hp < MaxHp * 0.5f)
-        {
-            _enraged = true;
-            _shotTimer = 0.8f * (0.5f + Random.Shared.NextSingle());
-            _burstTimer = 1.4f;
-        }
+        OnDamaged();
+    }
+
+    /// <summary>Called after every hit. Bosses use it to switch phases.</summary>
+    protected virtual void OnDamaged()
+    {
     }
 
     public void Update(World world, float dt)
     {
         HitFlash = MathF.Max(0, HitFlash - dt);
+        JustLanded = false;
         var target = world.NearestPlayer(Pos);
 
-        switch (Kind)
-        {
-            case EnemyKind.Fly:
-                Buzz(target, dt);
-                break;
-            case EnemyKind.Gaper:
-                Chase(target);
-                break;
-            case EnemyKind.Spitter:
-                KeepDistance(target, 220);
-                AimedShot(world, target, dt, 1.8f, 300f);
-                break;
-            case EnemyKind.Charger:
-                Charge(target, dt);
-                break;
-            case EnemyKind.Monstro when !_enraged:
-                Chase(target);
-                RadialBurst(world, dt, 10, 2.2f, 240f);
-                AimedShot(world, target, dt, 1.1f, 360f);
-                break;
-            case EnemyKind.Monstro:
-                Bounce();
-                RadialBurst(world, dt, 14, 1.4f, 280f);
-                AimedShot(world, target, dt, 0.8f, 380f);
-                break;
-        }
+        _movement.Move(this, target, world, dt);
+        foreach (var attack in _attacks)
+            attack.Attack(this, target, world, dt);
 
         Pos = world.MoveBody(Pos, Radius, Vel * dt, Flying);
     }
-
-    // ------------------------------------------------------------- movement
-
-    private static Vector2 Toward(Vector2 from, Vector2 to) => Vector2.Normalize(to - from + new Vector2(0.001f));
-
-    /// <summary>Walk straight at the nearest living player.</summary>
-    private void Chase(Player? target)
-    {
-        Vel = target == null ? Vector2.Zero : Toward(Pos, target.Pos) * Speed;
-    }
-
-    /// <summary>Erratic buzzing towards the player, like Isaac's flies.</summary>
-    private void Buzz(Player? target, float dt)
-    {
-        _phase += dt * 6f;
-        var toward = target == null ? Vector2.Zero : Toward(Pos, target.Pos);
-        var wobble = new Vector2(MathF.Cos(_phase), MathF.Sin(_phase * 1.3f));
-        Vel = Vector2.Normalize(toward + wobble * 0.9f + new Vector2(0.001f)) * Speed;
-    }
-
-    /// <summary>Keeps a preferred distance from the player, strafing around them.</summary>
-    private void KeepDistance(Player? target, float preferred)
-    {
-        if (target == null) { Vel = Vector2.Zero; return; }
-        var delta = target.Pos - Pos;
-        float dist = delta.Length();
-        var dir = dist > 0.01f ? delta / dist : Vector2.UnitX;
-        var strafe = new Vector2(-dir.Y, dir.X) * _strafeSign;
-        float radial = dist > preferred + 40 ? 1 : dist < preferred - 40 ? -1 : 0;
-        Vel = Vector2.Normalize(dir * radial + strafe * 0.6f) * Speed;
-    }
-
-    /// <summary>Wanders slowly; when lined up with a player, dashes at them.</summary>
-    private void Charge(Player? target, float dt)
-    {
-        if (_dashTime > 0)
-        {
-            _dashTime -= dt;
-            Vel = _dashDir * Speed * 3.2f;
-            return;
-        }
-
-        if (target != null)
-        {
-            var d = target.Pos - Pos;
-            if (MathF.Abs(d.X) < 24 || MathF.Abs(d.Y) < 24)
-            {
-                _dashDir = MathF.Abs(d.X) < 24 ? new Vector2(0, MathF.Sign(d.Y)) : new Vector2(MathF.Sign(d.X), 0);
-                _dashTime = 0.6f;
-                return;
-            }
-        }
-
-        _wanderTime -= dt;
-        if (_wanderTime <= 0)
-        {
-            _wanderTime = 0.8f + Random.Shared.NextSingle();
-            _wanderDir = Random.Shared.Next(4) switch
-            {
-                0 => Vector2.UnitX, 1 => -Vector2.UnitX, 2 => Vector2.UnitY, _ => -Vector2.UnitY,
-            };
-        }
-        Vel = _wanderDir * Speed;
-    }
-
-    /// <summary>Bounces around the room on a diagonal.</summary>
-    private void Bounce()
-    {
-        // If we did not move along an axis last frame we hit a wall: reflect.
-        if (_lastPos != Vector2.Zero)
-        {
-            var moved = Pos - _lastPos;
-            if (MathF.Abs(moved.X) < 0.01f) _bounceDir.X = -_bounceDir.X;
-            if (MathF.Abs(moved.Y) < 0.01f) _bounceDir.Y = -_bounceDir.Y;
-        }
-        _lastPos = Pos;
-        Vel = _bounceDir * Speed * 1.6f;
-    }
-
-    // -------------------------------------------------------------- attacks
-
-    /// <summary>Shoots a single tear at the nearest player.</summary>
-    private void AimedShot(World world, Player? target, float dt, float cooldown, float tearSpeed)
-    {
-        _shotTimer -= dt;
-        if (_shotTimer > 0 || target == null) return;
-        _shotTimer = cooldown;
-        world.SpawnTear(Pos, Toward(Pos, target.Pos) * tearSpeed, 1, 8f, 2.5f, fromEnemy: true);
-    }
-
-    /// <summary>Shoots a ring of tears in all directions.</summary>
-    private void RadialBurst(World world, float dt, int count, float cooldown, float tearSpeed)
-    {
-        _burstTimer -= dt;
-        if (_burstTimer > 0) return;
-        _burstTimer = cooldown;
-        _burstRotation += MathF.PI / count;
-        for (int i = 0; i < count; i++)
-        {
-            float a = _burstRotation + i * MathF.Tau / count;
-            var dir = new Vector2(MathF.Cos(a), MathF.Sin(a));
-            world.SpawnTear(Pos + dir * Radius, dir * tearSpeed, 1, 9f, 3f, fromEnemy: true);
-        }
-    }
 }
 
-public class FlyEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Fly, pos, floor);
+public class FlyEnemy(Vector2 pos, int floor)
+    : Enemy(EnemyKind.Fly, pos, floor, new BuzzMovement());
 
-public class GaperEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Gaper, pos, floor);
+public class GaperEnemy(Vector2 pos, int floor)
+    : Enemy(EnemyKind.Gaper, pos, floor, new ChaseMovement());
 
-public class SpitterEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Spitter, pos, floor);
+public class SpitterEnemy(Vector2 pos, int floor)
+    : Enemy(EnemyKind.Spitter, pos, floor, new TakeCoverMovement(220), new AimedShotAttack(1.8f, 300f));
 
-public class ChargerEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Charger, pos, floor);
+public class ChargerEnemy(Vector2 pos, int floor)
+    : Enemy(EnemyKind.Charger, pos, floor, new ChargeMovement());
 
-public class MonstroEnemy(Vector2 pos, int floor) : Enemy(EnemyKind.Monstro, pos, floor);
+public class SpiderEnemy(Vector2 pos, int floor)
+    : Enemy(EnemyKind.Spider, pos, floor, new SkitterMovement(1.5f));
+
+/// <summary>
+/// Phase 1: bounces around the room and spits sprays of tears at the player.
+/// Below half health it enrages: hops from tile to tile and fires a ring of tears on every landing instead.
+/// </summary>
+public class MonstroEnemy(Vector2 pos, int floor)
+    : Enemy(
+        EnemyKind.Monstro, pos, floor,
+        new BounceMovement(1.6f),
+        new SpitSprayAttack(count: 10, cooldown: 1.6f, spreadDegrees: 25f, minSpeed: 200f, maxSpeed: 360f),
+        new AimedShotAttack(1.1f, 360f))
+{
+    private bool _enraged;
+
+    protected override void OnDamaged()
+    {
+        if (_enraged || Hp >= MaxHp * 0.5f)
+            return;
+        _enraged = true;
+        SetBehaviour(
+            new JumpMovement(restTime: 1.0f, airTime: 0.7f, maxDistance: 260f, jumpHeight: 48f),
+            new LandingRingAttack(10, 240f),
+            new AimedShotAttack(0.8f, 380f));
+    }
+}
 
 public sealed class BossRushFlyEnemy : FlyEnemy
 {
@@ -248,6 +161,16 @@ public sealed class BossRushGaperEnemy : GaperEnemy
 public sealed class BossRushSpitterEnemy : SpitterEnemy
 {
     public BossRushSpitterEnemy(Vector2 pos, int floor) : base(pos, floor)
+    {
+        MaxHp *= 1.5f;
+        Hp = MaxHp;
+        Speed *= 1.1f;
+    }
+}
+
+public sealed class BossRushSpiderEnemy : SpiderEnemy
+{
+    public BossRushSpiderEnemy(Vector2 pos, int floor) : base(pos, floor)
     {
         MaxHp *= 1.5f;
         Hp = MaxHp;

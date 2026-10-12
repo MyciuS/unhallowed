@@ -152,11 +152,15 @@ public static class Renderer
             EnemyKind.Gaper => new Color(220, 170, 160, 255),
             EnemyKind.Spitter => new Color(120, 170, 80, 255),
             EnemyKind.Charger => new Color(200, 190, 150, 255),
+            EnemyKind.Spider => new Color(40, 30, 30, 255),
             _ => new Color(200, 90, 90, 255),
         };
         if (e.Flash) body = Color.White;
 
-        Raylib.DrawEllipse((int)pos.X, (int)(pos.Y + r * 0.9f), r, r * 0.3f, new Color(0, 0, 0, 60));
+        // The shadow stays on the ground and shrinks while the body is lifted into the air.
+        float lift = MathF.Min(e.Height / 80f, 0.6f);
+        Raylib.DrawEllipse((int)pos.X, (int)(pos.Y + r * 0.9f), r * (1 - lift), r * 0.3f * (1 - lift), new Color(0, 0, 0, 60));
+        pos.Y -= e.Height;
         switch (e.Kind)
         {
             case EnemyKind.Fly:
@@ -174,6 +178,20 @@ public static class Renderer
                 Raylib.DrawCircleV(pos, r * 0.85f, body);
                 Raylib.DrawCircleV(pos + new Vector2(-4, -3), 3, Color.Black);
                 Raylib.DrawCircleV(pos + new Vector2(4, -3), 3, Color.Black);
+                break;
+            case EnemyKind.Spider:
+                // Eight legs that twitch while it scuttles.
+                float twitch = MathF.Sin((float)Raylib.GetTime() * 25 + pos.X) * 3;
+                for (int i = 0; i < 4; i++)
+                {
+                    float y = -r * 0.5f + i * r * 0.35f;
+                    float bend = i % 2 == 0 ? twitch : -twitch;
+                    Raylib.DrawLineEx(pos + new Vector2(-r * 0.5f, y), pos + new Vector2(-r * 1.6f, y + bend + 4), 2, body);
+                    Raylib.DrawLineEx(pos + new Vector2(r * 0.5f, y), pos + new Vector2(r * 1.6f, y - bend + 4), 2, body);
+                }
+                Raylib.DrawCircleV(pos, r, body);
+                Raylib.DrawCircleV(pos + new Vector2(-4, -3), 2.5f, new Color(230, 40, 40, 255));
+                Raylib.DrawCircleV(pos + new Vector2(4, -3), 2.5f, new Color(230, 40, 40, 255));
                 break;
             default:
                 Raylib.DrawCircleV(pos, r, body);
