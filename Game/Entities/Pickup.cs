@@ -6,8 +6,8 @@ namespace Isaac.Game.Entities;
 public enum PickupKind : byte
 {
     Heart,
-    Item,      // item pedestal
-    Trapdoor,  // leads to the next floor
+    Item, // item pedestal
+    Trapdoor, // leads to the next floor
 }
 
 public abstract class Pickup(PickupKind kind, Vector2 pos, ItemKind item = default)
