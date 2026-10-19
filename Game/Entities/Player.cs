@@ -17,7 +17,7 @@ public sealed class Player
     public int Id { get; }
     public Vector2 Pos;
     public Vector2 Vel;
-    public Stats Stats { get; } = new();
+    public IStats Stats { get; private set; } = new BaseStats();
     public int Health;               // half hearts
     public float FireCooldown;
     public float Invuln;
@@ -31,7 +31,7 @@ public sealed class Player
     public void GiveItem(ItemKind item)
     {
         int oldMax = Stats.MaxHealth;
-        Stats.Apply(item);
+        Stats = ItemCatalog.Decorate(item, Stats); // DECORATOR: wrap the current stats in one more layer
         Items.Add(item);
         // Gaining a container also fills it; losing one clamps current health.
         if (Stats.MaxHealth > oldMax) Health += Stats.MaxHealth - oldMax;

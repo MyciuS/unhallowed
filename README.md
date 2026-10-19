@@ -74,7 +74,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Only six patterns are implemented for now. The rest of the code is intentionally plain, so other
+Only seven patterns are implemented for now. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -85,6 +85,7 @@ team members can add their own patterns.
 | **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateSkitterEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `SpiderEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushSpiderEnemy`, `BossRushMonstroEnemy`). |
 | **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
 | **Strategy** | `Game/AI/`, `Game/Entities/Enemy.cs` | `Enemy` (Context) delegates to an `IMovementStrategy` (`ChaseMovement`, `BuzzMovement`, `KeepDistanceMovement`, `TakeCoverMovement`, `ChargeMovement`, `BounceMovement`, `JumpMovement`, `SkitterMovement`) and a list of `IAttackStrategy` (`AimedShotAttack`, `LandingRingAttack`, `SpitSprayAttack`). Each enemy subclass picks its strategies in its constructor, and `SetBehaviour` swaps them at runtime: Monstro does this when it drops below half health to enter its enraged phase. |
+| **Decorator** | `Game/Items/Stats.cs`, `Game/Items/ItemDecorators.cs` | `IStats` (Component) is all the game reads. `BaseStats` (Concrete Component) holds a fresh character's stats. `StatsDecorator` (Decorator) wraps another `IStats` and passes every stat through; each item has a Concrete Decorator (`DamageUpDecorator`, `TearsUpDecorator`, `SpeedUpDecorator`, `RangeUpDecorator`, `HeartContainerDecorator`, `GlassCannonDecorator`) that overrides only the stats it changes. Picking up an item wraps the player's stats in one more layer (`ItemCatalog.Decorate`), so pickup order matters: Glass Cannon doubles all the damage collected before it. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -96,7 +97,6 @@ Plain code that other patterns could replace:
 | `IsaacGame` switches between the menu and the game with `if (_session == null)` | State |
 | `PlayerInput` is a plain struct of move and shoot directions | Command |
 | `Enemy` runs a plain list of attack strategies | Composite (one `IAttackStrategy` made of several) |
-| `Stats.Apply` changes the numbers directly when an item is picked up | Decorator |
 | `World.SpawnTear` allocates a new `Tear` for every shot | Object Pool |
 | `HostSession` / `ClientSession` behind `IGameSession` | Proxy |
 
@@ -108,7 +108,7 @@ Game/        World simulation, player input, events and listeners
   AI/        enemy movement and attack strategies, pathfinding around rocks
   Dungeon/   rooms, floor director and the two floor builders
   Entities/  player, enemies (with their AI), tears, pickups
-  Items/     player stats and item catalog
+  Items/     player stats, item decorators and item catalog
 Net/         snapshot serialization, host and client sessions
 Rendering/   shape-based renderer (no assets needed)
 IsaacGame.cs window and main loop, switches between menu and game

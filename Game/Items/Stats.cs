@@ -1,43 +1,46 @@
 namespace Isaac.Game.Items;
 
-/// <summary>Player stats. Picking up an item changes them directly.</summary>
-public sealed class Stats
+/// <summary>
+/// DECORATOR pattern, the Component: the stats a player has. The game only ever reads them
+/// through this interface, so it cannot tell plain stats from stats wrapped in item decorators.
+/// </summary>
+public interface IStats
 {
-    public float Speed = 260f;      // pixels per second
-    public float Damage = 3.5f;
-    public float FireDelay = 0.38f; // seconds between tears
-    public float ShotSpeed = 520f;  // pixels per second
-    public float Range = 0.75f;     // tear lifetime in seconds
-    public float TearSize = 8f;     // radius in pixels
-    public int MaxHealth = 6;       // in half hearts
+    float Speed { get; }      // pixels per second
+    float Damage { get; }
+    float FireDelay { get; }  // seconds between tears
+    float ShotSpeed { get; }  // pixels per second
+    float Range { get; }      // tear lifetime in seconds
+    float TearSize { get; }   // radius in pixels
+    int MaxHealth { get; }    // in half hearts
+}
 
-    public void Apply(ItemKind item)
-    {
-        switch (item)
-        {
-            case ItemKind.DamageUp:
-                Damage += 1.5f;
-                TearSize += 1.5f;
-                break;
-            case ItemKind.TearsUp:
-                FireDelay = MathF.Max(0.08f, FireDelay * 0.75f);
-                break;
-            case ItemKind.SpeedUp:
-                Speed = MathF.Min(520f, Speed + 50f);
-                break;
-            case ItemKind.RangeUp:
-                Range += 0.3f;
-                ShotSpeed += 60f;
-                break;
-            case ItemKind.HeartContainer:
-                MaxHealth = Math.Min(24, MaxHealth + 2);
-                break;
-            case ItemKind.GlassCannon:
-                // Big damage boost at the cost of a heart container.
-                Damage *= 2f;
-                TearSize += 4f;
-                MaxHealth = Math.Max(2, MaxHealth - 2);
-                break;
-        }
-    }
+/// <summary>DECORATOR pattern, the Concrete Component: a fresh character's stats, before any items.</summary>
+public sealed class BaseStats : IStats
+{
+    public float Speed => 260f;
+    public float Damage => 3.5f;
+    public float FireDelay => 0.38f;
+    public float ShotSpeed => 520f;
+    public float Range => 0.75f;
+    public float TearSize => 8f;
+    public int MaxHealth => 6;
+}
+
+/// <summary>
+/// DECORATOR pattern, the Decorator: wraps another <see cref="IStats"/> and passes every stat
+/// through unchanged. Concrete decorators override only the stats their item changes, so
+/// items stack by wrapping: each one changes the result of everything picked up before it.
+/// </summary>
+public abstract class StatsDecorator(IStats inner) : IStats
+{
+    protected IStats Inner { get; } = inner;
+
+    public virtual float Speed => Inner.Speed;
+    public virtual float Damage => Inner.Damage;
+    public virtual float FireDelay => Inner.FireDelay;
+    public virtual float ShotSpeed => Inner.ShotSpeed;
+    public virtual float Range => Inner.Range;
+    public virtual float TearSize => Inner.TearSize;
+    public virtual int MaxHealth => Inner.MaxHealth;
 }
