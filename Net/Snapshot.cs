@@ -13,6 +13,7 @@ public struct PlayerView
     public bool Blink;
     public float Damage, Speed, TearsPerSecond;
     public byte ItemCount;
+    public string Character;
 }
 
 public struct EnemyView
@@ -89,6 +90,7 @@ public sealed class Snapshot
             w.Write(p.Id); w.Write(p.X); w.Write(p.Y); w.Write(p.LookX); w.Write(p.LookY);
             w.Write(p.Health); w.Write(p.MaxHealth); w.Write(p.Blink);
             w.Write(p.Damage); w.Write(p.Speed); w.Write(p.TearsPerSecond); w.Write(p.ItemCount);
+            w.Write(p.Character);
         }
 
         w.Write((byte)Enemies.Count);
@@ -141,6 +143,7 @@ public sealed class Snapshot
                 Id = r.ReadByte(), X = r.ReadInt16(), Y = r.ReadInt16(), LookX = r.ReadSByte(), LookY = r.ReadSByte(),
                 Health = r.ReadByte(), MaxHealth = r.ReadByte(), Blink = r.ReadBoolean(),
                 Damage = r.ReadSingle(), Speed = r.ReadSingle(), TearsPerSecond = r.ReadSingle(), ItemCount = r.ReadByte(),
+                Character = r.ReadString(),
             });
         }
 
