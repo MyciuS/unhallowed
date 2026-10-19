@@ -1,0 +1,103 @@
+classDiagram
+    direction LR
+
+    class IEventListener~T~ {
+        <<interface>>
+        +OnEvent(T evt) void
+    }
+
+    class EventBus {
+        -Dictionary~Type, List~object~~ _listeners
+        +Subscribe~T~(IEventListener~T~ listener) void
+        +Unsubscribe~T~(IEventListener~T~ listener) void
+        +Publish~T~(T evt) void
+    }
+
+    class World {
+        +EventBus Events
+        +ShowMessage(string text) void
+    }
+
+    class ScoreKeeper {
+        +int Score
+        +ScoreKeeper(EventBus events)
+        +Reset() void
+        +OnEvent(EnemyKilled e) void
+        +OnEvent(RoomCleared e) void
+        +OnEvent(ItemPickedUp e) void
+        +OnEvent(FloorStarted e) void
+    }
+
+    class Announcer {
+        -World _world
+        +Announcer(World world, EventBus events)
+        +OnEvent(ItemPickedUp e) void
+        +OnEvent(PlayerDied e) void
+        +OnEvent(FloorStarted e) void
+        +OnEvent(RoomCleared e) void
+        -Say(string text) void
+    }
+
+    class LootDropper {
+        +LootDropper(EventBus events)
+        +OnEvent(RoomCleared e) void
+    }
+
+    class ActionLogger {
+        -GameLogger _log
+        +ActionLogger(EventBus events)
+        +OnEvent(FloorStarted e) void
+        +OnEvent(EnemyKilled e) void
+        +OnEvent(RoomCleared e) void
+        +OnEvent(ItemPickedUp e) void
+        +OnEvent(PlayerHurt e) void
+        +OnEvent(PlayerDied e) void
+    }
+
+    class EnemyKilled {
+        <<record struct>>
+        +Enemy Enemy
+    }
+    class PlayerHurt {
+        <<record struct>>
+        +Player Player
+    }
+    class PlayerDied {
+        <<record struct>>
+        +Player Player
+    }
+    class RoomCleared {
+        <<record struct>>
+        +Room Room
+        +Floor Floor
+    }
+    class ItemPickedUp {
+        <<record struct>>
+        +Player Player
+        +ItemKind Item
+    }
+    class FloorStarted {
+        <<record struct>>
+        +Floor Floor
+    }
+
+    IEventListener~T~ <|.. ScoreKeeper
+    IEventListener~T~ <|.. Announcer
+    IEventListener~T~ <|.. LootDropper
+    IEventListener~T~ <|.. ActionLogger
+
+    EventBus o-- "*" IEventListener~T~ : notifies
+    World *-- EventBus : owns
+    World ..> EventBus : publishes events
+    World --> ScoreKeeper : creates
+    World ..> Announcer : creates
+    World ..> LootDropper : creates
+    World ..> ActionLogger : creates
+    Announcer --> World : shows messages
+
+    EventBus ..> EnemyKilled : dispatches
+    EventBus ..> PlayerHurt : dispatches
+    EventBus ..> PlayerDied : dispatches
+    EventBus ..> RoomCleared : dispatches
+    EventBus ..> ItemPickedUp : dispatches
+    EventBus ..> FloorStarted : dispatches
