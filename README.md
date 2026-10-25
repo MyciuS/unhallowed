@@ -53,6 +53,8 @@ docker compose logs -f         # joins, leaves, restarts
 
 **Controls:** WASD to move, arrow keys to shoot, Esc to go back to the menu, and R to restart after a game over (host only).
 
+**Developer console:** F6 opens it, F6 or Esc closes it. The Cheats tab (items, heal, kill all enemies, boss room, next floor, reveal map, god mode, one-shot kills) only works in singleplayer or for the host of a co-op game, since the host runs the only real copy of the game. The Patterns tab lists the twelve required patterns, shows which ones are in the current build, and runs their `--demo`s in-game.
+
 ## Gameplay
 
 - Floors are random and use a minimap. Each floor has normal rooms, a treasure room (yellow) and a boss room (red).
@@ -121,6 +123,7 @@ Plain code that other patterns could replace:
 ```
 Core/        config, event bus, logger and the prototype interface
 Demos/       console demonstrations of the patterns (--demo)
+DevTools/    F6 developer console: cheats and the pattern checklist
 Game/        World simulation, player input, events and listeners
   Characters/ character prototypes and their registry
   Dungeon/   rooms, floor director, the two floor builders and the dungeon facade
