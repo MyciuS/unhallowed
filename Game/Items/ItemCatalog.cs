@@ -8,12 +8,14 @@ public enum ItemKind : byte
     RangeUp,
     HeartContainer,
     GlassCannon,
+    GodMode, // demo only, never in the random pool
 }
 
 /// <summary>Item list and display names. The stat changes live in <see cref="Stats.Apply"/>.</summary>
 public static class ItemCatalog
 {
-    public static readonly ItemKind[] All = Enum.GetValues<ItemKind>();
+    /// <summary>Items that can show up in treasure rooms.</summary>
+    public static readonly ItemKind[] All = Enum.GetValues<ItemKind>().Where(k => k != ItemKind.GodMode).ToArray();
 
     public static string Name(ItemKind kind) => kind switch
     {
@@ -23,6 +25,7 @@ public static class ItemCatalog
         ItemKind.RangeUp => "Range Up",
         ItemKind.HeartContainer => "Heart Container",
         ItemKind.GlassCannon => "Glass Cannon",
+        ItemKind.GodMode => "God Mode",
         _ => kind.ToString(),
     };
 }

@@ -38,6 +38,16 @@ public sealed class Stats
                 TearSize += 4f;
                 MaxHealth = Math.Max(2, MaxHealth - 2);
                 break;
+            case ItemKind.GodMode:
+                // Demo item: 24 hearts and enough firepower to melt bosses.
+                Damage = MathF.Max(Damage, 30f);
+                TearSize = MathF.Max(TearSize, 14f);
+                FireDelay = MathF.Min(FireDelay, 0.12f);
+                Speed = MathF.Max(Speed, 400f);
+                Range += 0.5f;
+                ShotSpeed += 150f;
+                MaxHealth = 48;
+                break;
         }
     }
 }

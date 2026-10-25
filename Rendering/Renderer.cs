@@ -226,6 +226,7 @@ public static class Renderer
         ItemKind.SpeedUp => new Color(250, 220, 70, 255),
         ItemKind.RangeUp => new Color(120, 230, 140, 255),
         ItemKind.HeartContainer => HeartRed,
+        ItemKind.GodMode => new Color(255, 215, 0, 255),
         _ => new Color(200, 230, 255, 255),
     };
 

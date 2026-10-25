@@ -1,18 +1,23 @@
 using Isaac.Core;
+using Isaac.Game.Dungeon;
 using Isaac.Net;
 using Isaac.Rendering;
 using Raylib_cs;
 
 namespace Isaac;
 
-/// <summary>Main menu: pick singleplayer, host, join or quit.</summary>
+/// <summary>Main menu: pick singleplayer, demo, host, join or quit.</summary>
 public sealed class Menu(IsaacGame game)
 {
-    private static readonly string[] Options = ["Singleplayer", "Host Co-op", "Join Co-op", "Quit"];
+    private static readonly string[] Options = ["Singleplayer", "Demo", "Host Co-op", "Join Co-op", "Quit"];
 
     private string _address = "127.0.0.1";
     private int _selected;
     private bool _editingAddress;
+    private bool _choosingDemo;
+    private int _demoRow; // 0 = floor type, 1 = floor number, 2 = start
+    private FloorType _demoType = FloorType.Standard;
+    private int _demoFloor = 1;
 
     /// <summary>Shown under the menu, e.g. why the last connection ended.</summary>
     public string? Notice { get; set; }
@@ -22,6 +27,11 @@ public sealed class Menu(IsaacGame game)
         if (_editingAddress)
         {
             UpdateAddressInput();
+            return;
+        }
+        if (_choosingDemo)
+        {
+            UpdateDemoInput();
             return;
         }
 
@@ -39,14 +49,50 @@ public sealed class Menu(IsaacGame game)
                 game.StartSession(new HostSession(networked: false));
                 break;
             case 1:
-                game.StartSession(new HostSession(networked: true));
+                _choosingDemo = true;
+                _demoRow = 0;
                 break;
             case 2:
-                _editingAddress = true;
+                game.StartSession(new HostSession(networked: true));
                 break;
             case 3:
+                _editingAddress = true;
+                break;
+            case 4:
                 game.Quit();
                 break;
+        }
+    }
+
+    private void UpdateDemoInput()
+    {
+        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+        {
+            _choosingDemo = false;
+            return;
+        }
+        if (Raylib.IsKeyPressed(KeyboardKey.Down) || Raylib.IsKeyPressed(KeyboardKey.S))
+            _demoRow = (_demoRow + 1) % 3;
+        if (Raylib.IsKeyPressed(KeyboardKey.Up) || Raylib.IsKeyPressed(KeyboardKey.W))
+            _demoRow = (_demoRow + 2) % 3;
+
+        int step = 0;
+        if (Raylib.IsKeyPressed(KeyboardKey.Right) || Raylib.IsKeyPressed(KeyboardKey.D))
+            step = 1;
+        if (Raylib.IsKeyPressed(KeyboardKey.Left) || Raylib.IsKeyPressed(KeyboardKey.A))
+            step = -1;
+        if (_demoRow == 0 && step != 0)
+            _demoType = _demoType == FloorType.Standard ? FloorType.BossRush : FloorType.Standard;
+        if (_demoRow == 1)
+            _demoFloor = Math.Clamp(_demoFloor + step, 1, DemoStart.MaxFloor);
+
+        bool confirm = Raylib.IsKeyPressed(KeyboardKey.Enter) || Raylib.IsKeyPressed(KeyboardKey.Space);
+        if (confirm && _demoRow == 0)
+            _demoType = _demoType == FloorType.Standard ? FloorType.BossRush : FloorType.Standard;
+        if (confirm && _demoRow == 2)
+        {
+            _choosingDemo = false;
+            game.StartSession(new HostSession(networked: false, demo: new DemoStart(_demoType, _demoFloor)));
         }
     }
 
@@ -114,6 +160,29 @@ public sealed class Menu(IsaacGame game)
             bool caret = (int)(Raylib.GetTime() * 2) % 2 == 0;
             Renderer.DrawCentered(_address + (caret ? "_" : " "), 300, 32, Color.White);
             Renderer.DrawCentered("Enter to connect, Esc to cancel", 360, 18, Renderer.TextDim);
+        }
+
+        if (_choosingDemo)
+        {
+            Raylib.DrawRectangle(0, 0, Config.ScreenW, Config.ScreenH, new Color(0, 0, 0, 200));
+            Renderer.DrawCentered("Demo: pick a floor", 220, 28, Renderer.Text);
+            string[] rows =
+            [
+                $"Floor type:  < {(_demoType == FloorType.BossRush ? "Boss Rush" : "Normal")} >",
+                $"Floor:  < {_demoFloor} >",
+                "Start",
+            ];
+            for (int i = 0; i < rows.Length; i++)
+            {
+                bool sel = i == _demoRow;
+                Renderer.DrawCentered(rows[i], 290 + i * 44, 26, sel ? Color.White : Renderer.TextDim);
+            }
+            Renderer.DrawCentered(
+                "Up/Down select   Left/Right change   Enter start   Esc back",
+                440,
+                18,
+                Renderer.TextDim
+            );
         }
 
         if (Notice != null)

@@ -1,5 +1,6 @@
 using Isaac.Core;
 using Isaac.Game;
+using Isaac.Game.Dungeon;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.SignalR;
@@ -41,7 +42,7 @@ public sealed class HostSession : IGameSession
         public int InFlight { get; set; }
     }
 
-    private readonly World _world = new();
+    private readonly World _world;
     private readonly WebApplication? _server;
     private readonly IHubContext<GameHub>? _hub;
     private readonly HubInbox _inbox = new();
@@ -53,14 +54,21 @@ public sealed class HostSession : IGameSession
     /// Headless server: no local player, so every slot goes to a remote player
     /// and the game restarts by itself after a game over.
     /// </param>
-    public HostSession(bool networked, int port = Config.DefaultPort, bool dedicated = false)
+    /// <param name="demo">Start on a chosen floor instead of floor 1.</param>
+    public HostSession(
+        bool networked,
+        int port = Config.DefaultPort,
+        bool dedicated = false,
+        DemoStart? demo = null
+    )
     {
+        _world = new World(demo);
         _dedicated = dedicated;
         if (!dedicated) _world.AddPlayer(LocalId);
         Latest = _world.BuildSnapshot();
         if (!networked)
         {
-            Status = "Singleplayer";
+            Status = demo != null ? $"Demo: {demo.Label}" : "Singleplayer";
             return;
         }
 

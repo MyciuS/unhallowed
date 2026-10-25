@@ -2,6 +2,7 @@ using System.Numerics;
 using Isaac.Core;
 using Isaac.Game.Dungeon;
 using Isaac.Game.Entities;
+using Isaac.Game.Items;
 using Isaac.Net;
 
 namespace Isaac.Game;
@@ -17,16 +18,18 @@ public sealed class World
     private readonly FloorDirector _director = new();
     private readonly IFloorBuilder _standardBuilder = new StandardFloorBuilder();
     private readonly IFloorBuilder _bossRushBuilder = new BossRushFloorBuilder();
+    private readonly DemoStart? _demo;
     private float _messageTimer;
     private float _transitionCooldown;
 
-    public World()
+    public World(DemoStart? demo = null)
     {
+        _demo = demo;
         _score = new ScoreKeeper(Events);
         _ = new Announcer(this, Events);
         _ = new LootDropper(Events);
         _ = new ActionLogger(Events);
-        StartFloor(1);
+        StartFirstFloor();
     }
 
     public EventBus Events { get; } = new();
@@ -83,14 +86,26 @@ public sealed class World
         Players.Clear();
         _score.Reset();
         GameOver = false;
-        StartFloor(1);
+        StartFirstFloor();
         foreach (int id in ids)
             AddPlayer(id);
     }
 
-    private void StartFloor(int number)
+    private void StartFirstFloor()
     {
-        var builder = number % Config.BossRushEvery == 0 ? _bossRushBuilder : _standardBuilder;
+        if (_demo != null)
+        {
+            StartFloor(_demo.FloorNumber, _demo.Type);
+            Floor.Start.Pickups.Add(PickupFactory.CreateItemPedestal(Room.Center + new Vector2(0, -90), ItemKind.GodMode));
+        }
+        else
+            StartFloor(1);
+    }
+
+    private void StartFloor(int number, FloorType? type = null)
+    {
+        type ??= number % Config.BossRushEvery == 0 ? FloorType.BossRush : FloorType.Standard;
+        var builder = type == FloorType.BossRush ? _bossRushBuilder : _standardBuilder;
         Floor = _director.Construct(builder, number);
         EnterRoom(Floor.Start, null);
         int i = 0;
