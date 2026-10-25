@@ -39,7 +39,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -o publish/win-x64
 
 This command also works from Linux. Zip the `publish/win-x64` folder and send it.
 
-**Pattern demos:** `dotnet run -- --demo prototype` (or `bridge`) runs a console demonstration instead of the game.
+**Pattern demos:** `dotnet run -- --demo prototype` (or `bridge`, `facade`) runs a console demonstration instead of the game.
 
 ## Dedicated server (headless Linux)
 
@@ -88,7 +88,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Seven patterns are implemented so far. The rest of the code is intentionally plain, so other
+Eight patterns are implemented so far. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -100,6 +100,7 @@ team members can add their own patterns.
 | **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
 | **Prototype** | `Core/IPrototype.cs`, `Game/Characters/`, `Game/Items/Stats.cs` | Each playable character (Isaac, Magdalene, Cain, Judas) is a configured `Character` prototype in a `CharacterRegistry`. Every player gets a deep clone of one, which becomes their own stats and item list. `dotnet run -- --demo prototype` compares shallow and deep copies with memory addresses. |
 | **Bridge** | `Rendering/` | HUD widgets (`HudWidget` Abstraction, refined by `MinimapWidget` and `BossBarWidget`) decide what to show and hand every shape to an `ICanvas` (Implementor). `RaylibCanvas` draws into the game window and `SvgCanvas` writes an SVG image, so widgets and devices can be added independently. `dotnet run -- --demo bridge` draws the same widgets on both canvases. |
+| **Facade** | `Game/Dungeon/DungeonFacade.cs` | `DungeonFacade` is the one entry point to the dungeon subsystems (`FloorDirector`, `StandardFloorBuilder`, `BossRushFloorBuilder`, the floor's `IEnemyFactory`, `PickupFactory`). Its clients `World` and `LootDropper` only call `CreateFloor`, `SpawnEnemies` and `DropClearReward`. `dotnet run -- --demo facade` shows each call and both clients. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -122,7 +123,7 @@ Core/        config, event bus, logger and the prototype interface
 Demos/       console demonstrations of the patterns (--demo)
 Game/        World simulation, player input, events and listeners
   Characters/ character prototypes and their registry
-  Dungeon/   rooms, floor director and the two floor builders
+  Dungeon/   rooms, floor director, the two floor builders and the dungeon facade
   Entities/  player, enemies (with their AI), tears, pickups
   Items/     player stats and item catalog
 Net/         snapshot serialization, host and client sessions
