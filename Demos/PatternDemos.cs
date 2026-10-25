@@ -6,6 +6,7 @@ public static class PatternDemos
     private static readonly Dictionary<string, Action> All = new(StringComparer.OrdinalIgnoreCase)
     {
         ["prototype"] = PrototypeDemo.Run,
+        ["bridge"] = BridgeDemo.Run,
     };
 
     public static void Run(string name)

@@ -39,6 +39,10 @@ public static class Renderer
         new(255, 185, 90, 255),
     ];
 
+    private static readonly RaylibCanvas Canvas = new();
+    private static readonly MinimapWidget Minimap = new(Canvas, Config.ScreenW - MinimapWidget.Width, 0);
+    private static readonly BossBarWidget BossBar = new(Canvas, Config.ScreenW / 2 - BossBarWidget.Width / 2, Config.ScreenH - 60);
+
     private static Vector2 W(float x, float y) => new(Ox + x, Oy + y);
 
     public static void Draw(Snapshot s, int localPlayerId)
@@ -49,8 +53,8 @@ public static class Renderer
         foreach (var p in s.Players) DrawPlayer(p, p.Id == localPlayerId);
         foreach (var t in s.Tears) DrawTear(t);
         DrawHud(s, localPlayerId);
-        DrawMinimap(s);
-        DrawBossBar(s);
+        Minimap.Draw(s);
+        BossBar.Draw(s);
 
         if (s.Message.Length > 0)
             DrawCentered(s.Message, Oy + 16, 26, Text, shadow: true);
@@ -267,46 +271,6 @@ public static class Renderer
 
         // Floor and score live in the top wall, out of the way of the player columns.
         Raylib.DrawText($"Floor {s.Floor}   Score {s.Score}", 20, Config.HudHeight + 22, 18, Text);
-    }
-
-    private static void DrawMinimap(Snapshot s)
-    {
-        if (s.Map.Count == 0) return;
-        const int cw = 16, ch = 11, gap = 2;
-        var current = s.Map.FirstOrDefault(m => (m.Flags & MapCell.FlagCurrent) != 0);
-        // Centre the map on the current room.
-        int cx = Config.ScreenW - 70, cy = 36;
-        foreach (var m in s.Map)
-        {
-            int x = cx + (m.X - current.X) * (cw + gap) - cw / 2;
-            int y = cy + (m.Y - current.Y) * (ch + gap) - ch / 2;
-            if (x < Config.ScreenW - 140 || x > Config.ScreenW - cw || y < 2 || y > Config.HudHeight - ch) continue;
-            bool visited = (m.Flags & MapCell.FlagVisited) != 0;
-            bool here = (m.Flags & MapCell.FlagCurrent) != 0;
-            var color = here ? Color.White : visited ? new Color(150, 150, 150, 255) : new Color(70, 70, 70, 255);
-            Raylib.DrawRectangle(x, y, cw, ch, color);
-            var icon = m.Kind switch
-            {
-                RoomKind.Boss => new Color(200, 40, 40, 255),
-                RoomKind.Treasure => new Color(240, 200, 40, 255),
-                _ => default,
-            };
-            if (icon.A > 0) Raylib.DrawRectangle(x + 5, y + 3, 6, 5, icon);
-        }
-    }
-
-    private static void DrawBossBar(Snapshot s)
-    {
-        foreach (var e in s.Enemies)
-        {
-            if (e.Kind != EnemyKind.Monstro) continue;
-            const int w = 360;
-            int x = Config.ScreenW / 2 - w / 2, y = Config.ScreenH - 40;
-            Raylib.DrawRectangle(x - 2, y - 2, w + 4, 18, Color.Black);
-            Raylib.DrawRectangle(x, y, w * e.HpPercent / 100, 14, HeartRed);
-            DrawCentered("MONSTRO", y - 20, 16, Text, shadow: true);
-            return;
-        }
     }
 
     public static void DrawCentered(string text, int y, int size, Color color, bool shadow = false)
