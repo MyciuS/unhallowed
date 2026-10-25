@@ -19,6 +19,7 @@ artifacts/
 
 ## Local data
 game.log
+bridge-demo.svg
 *.db
 *.db-shm
 *.db-wal
