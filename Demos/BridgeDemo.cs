@@ -59,6 +59,13 @@ public static class BridgeDemo
         Console.WriteLine();
         Console.WriteLine("== The same widgets on a RaylibCanvas ==");
 
+        // Run from the F6 console: Raylib has one window per process, and the game already owns it.
+        if (Raylib.IsWindowReady())
+        {
+            Console.WriteLine("  the game window is already open: the minimap and boss bar in its HUD are this side");
+            return;
+        }
+
         Raylib.SetTraceLogLevel(TraceLogLevel.Warning);
         Raylib.InitWindow(Width, Height, "Bridge demo: RaylibCanvas");
         if (!Raylib.IsWindowReady())

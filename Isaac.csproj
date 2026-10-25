@@ -17,6 +17,7 @@
     <Compile Include="Net/**/*.cs" />
     <Compile Include="Rendering/**/*.cs" />
     <Compile Include="Demos/**/*.cs" />
+    <Compile Include="DevTools/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -10,6 +10,8 @@ public static class PatternDemos
         ["facade"] = FacadeDemo.Run,
     };
 
+    public static IReadOnlyCollection<string> Names => All.Keys;
+
     public static void Run(string name)
     {
         if (All.TryGetValue(name, out var demo))

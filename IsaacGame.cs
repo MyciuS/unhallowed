@@ -1,4 +1,5 @@
 using Isaac.Core;
+using Isaac.DevTools;
 using Isaac.Game;
 using Isaac.Net;
 using Isaac.Rendering;
@@ -10,6 +11,7 @@ namespace Isaac;
 public sealed class IsaacGame
 {
     private readonly Menu _menu;
+    private readonly DevConsole _devConsole = new();
     private IGameSession? _session; // null while the menu is shown
     private bool _quit;
 
@@ -41,13 +43,23 @@ public sealed class IsaacGame
         while (!_quit && !Raylib.WindowShouldClose())
         {
             float dt = MathF.Min(Raylib.GetFrameTime(), 0.1f);
-            if (_session == null) _menu.Update();
-            else UpdatePlaying(_session, dt);
+            // Read before Update: the Esc that closes the console must not also leave the game.
+            bool consoleOpen = _devConsole.IsOpen;
+            _devConsole.Update();
+            if (_session == null)
+            {
+                if (!consoleOpen) _menu.Update();
+            }
+            else
+            {
+                UpdatePlaying(_session, dt, allowEscape: !consoleOpen);
+            }
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(Renderer.Background);
             if (_session == null) _menu.Draw();
             else DrawPlaying(_session);
+            _devConsole.Draw(_session);
             Raylib.EndDrawing();
         }
 
@@ -56,9 +68,9 @@ public sealed class IsaacGame
         GameLogger.Instance.Log("Game closed");
     }
 
-    private void UpdatePlaying(IGameSession session, float dt)
+    private void UpdatePlaying(IGameSession session, float dt, bool allowEscape)
     {
-        if (Raylib.IsKeyPressed(KeyboardKey.Escape))
+        if (allowEscape && Raylib.IsKeyPressed(KeyboardKey.Escape))
         {
             ShowMenu();
             return;
