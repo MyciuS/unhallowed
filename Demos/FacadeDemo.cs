@@ -61,7 +61,7 @@ public static class FacadeDemo
         Console.WriteLine();
         Console.WriteLine("== DropClearReward(floor, room): asks PickupFactory for the right pickups ==");
         var floor = dungeon.CreateFloor(1);
-        var boss = ClearBossRooms(floor);
+        var boss = floor.Rooms.Values.First(r => r.Kind == RoomKind.Boss);
         dungeon.DropClearReward(floor, boss);
         Console.WriteLine($"  last boss cleared -> {string.Join(", ", boss.Pickups.Select(p => p.GetType().Name))}");
     }
@@ -79,17 +79,9 @@ public static class FacadeDemo
         var dungeon = new DungeonFacade();
         _ = new LootDropper(events, dungeon);
         var floor = dungeon.CreateFloor(1);
-        var boss = ClearBossRooms(floor);
+        var boss = floor.Rooms.Values.First(r => r.Kind == RoomKind.Boss);
         events.Publish(new RoomCleared(boss, floor));
         Console.WriteLine(
             $"  LootDropper  on RoomCleared -> DropClearReward: {string.Join(", ", boss.Pickups.Select(p => p.GetType().Name))}");
-    }
-
-    private static Room ClearBossRooms(Floor floor)
-    {
-        var bosses = floor.Rooms.Values.Where(r => r.Kind == RoomKind.Boss).ToList();
-        foreach (var room in bosses)
-            room.Cleared = true;
-        return bosses[^1];
     }
 }

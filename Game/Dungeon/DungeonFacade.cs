@@ -16,11 +16,17 @@ public sealed class DungeonFacade
     private const float HeartChance = 0.4f;
 
     private readonly FloorDirector _director = new();
-    private readonly IFloorBuilder _standardBuilder = new StandardFloorBuilder();
-    private readonly IFloorBuilder _bossRushBuilder = new BossRushFloorBuilder();
+    private readonly IFloorBuilder _standardBuilder;
+    private readonly IFloorBuilder _bossRushBuilder;
     private readonly Random _rng;
 
-    public DungeonFacade(Random? rng = null) => _rng = rng ?? Random.Shared;
+    /// <param name="rng">Seeds the floor layouts and the loot, so the same seed gives the same dungeon.</param>
+    public DungeonFacade(Random? rng = null)
+    {
+        _rng = rng ?? Random.Shared;
+        _standardBuilder = new StandardFloorBuilder(rng?.Next());
+        _bossRushBuilder = new BossRushFloorBuilder(rng?.Next());
+    }
 
     /// <summary>Builds floor <paramref name="number"/>; every <see cref="Config.BossRushEvery"/>th one is a boss rush.</summary>
     public Floor CreateFloor(int number)
@@ -30,12 +36,13 @@ public sealed class DungeonFacade
     }
 
     /// <summary>The enemies waiting in <paramref name="room"/>, made by the floor's own enemy family. None once it is cleared.</summary>
-    public IEnumerable<Enemy> SpawnEnemies(Floor floor, Room room) =>
-        room.Cleared ? [] : room.Spawns.Select(spawn => floor.EnemyFactory.Create(spawn, floor.Number));
+    public IReadOnlyList<Enemy> SpawnEnemies(Floor floor, Room room) =>
+        room.Cleared ? [] : room.Spawns.Select(spawn => floor.EnemyFactory.Create(spawn, floor.Number)).ToList();
 
-    /// <summary>Puts the reward for clearing <paramref name="room"/> into it.</summary>
+    /// <summary>Marks <paramref name="room"/> as cleared and puts the reward for it into the room.</summary>
     public void DropClearReward(Floor floor, Room room)
     {
+        room.Cleared = true;
         // The trapdoor only appears after the floor's last boss (boss rush floors have several).
         if (room.Kind == RoomKind.Boss && floor.BossRoomsLeft == 0)
         {
