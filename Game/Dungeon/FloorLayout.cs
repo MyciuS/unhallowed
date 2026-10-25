@@ -43,7 +43,8 @@ internal static class FloorLayout
         int number,
         string title,
         Dictionary<(int, int), Room> rooms,
-        IEnemyFactory enemyFactory)
+        IEnemyFactory enemyFactory
+    )
     {
         foreach (var room in rooms.Values)
         {
