@@ -12,7 +12,7 @@ namespace Isaac.Game;
 /// render the <see cref="Snapshot"/>s it produces.
 /// All players share one room at a time (like Isaac co-op).
 /// </summary>
-public sealed class World
+public sealed partial class World
 {
     private readonly ScoreKeeper _score;
     private readonly DungeonFacade _dungeon = new();
@@ -258,7 +258,7 @@ public sealed class World
                 {
                     if (e.Dead || Vector2.Distance(e.Pos, t.Pos) >= e.Radius + t.Radius)
                         continue;
-                    e.TakeDamage(t.Damage);
+                    e.TakeDamage(OneShotKills ? e.Hp : t.Damage);
                     if (!e.IsBoss)
                         e.Pos = MoveBody(e.Pos, e.Radius, Vector2.Normalize(t.Vel) * 10, e.Flying);
                     t.Dead = true;
@@ -344,7 +344,7 @@ public sealed class World
 
     private void HurtPlayer(Player p, int amount)
     {
-        if (!p.TryDamage(amount))
+        if (GodMode || !p.TryDamage(amount))
             return;
         Events.Publish(new PlayerHurt(p));
         if (!p.Alive)

@@ -100,6 +100,9 @@ public sealed class HostSession : IGameSession
 
     public bool IsHost => true;
     public int LocalPlayerId => LocalId;
+
+    /// <summary>The authoritative game, for the host's own developer console.</summary>
+    public World World => _world;
     public Snapshot? Latest
     {
         get => _latest;
