@@ -7,6 +7,7 @@ public static class PatternDemos
     {
         ["prototype"] = PrototypeDemo.Run,
         ["bridge"] = BridgeDemo.Run,
+        ["facade"] = FacadeDemo.Run,
     };
 
     public static void Run(string name)

@@ -15,9 +15,7 @@ namespace Isaac.Game;
 public sealed class World
 {
     private readonly ScoreKeeper _score;
-    private readonly FloorDirector _director = new();
-    private readonly IFloorBuilder _standardBuilder = new StandardFloorBuilder();
-    private readonly IFloorBuilder _bossRushBuilder = new BossRushFloorBuilder();
+    private readonly DungeonFacade _dungeon = new();
     private readonly CharacterRegistry _characters = CharacterRegistry.CreateDefault();
     private float _messageTimer;
     private float _transitionCooldown;
@@ -26,7 +24,7 @@ public sealed class World
     {
         _score = new ScoreKeeper(Events);
         _ = new Announcer(this, Events);
-        _ = new LootDropper(Events);
+        _ = new LootDropper(Events, _dungeon);
         _ = new ActionLogger(Events);
         StartFloor(1);
     }
@@ -95,8 +93,7 @@ public sealed class World
 
     private void StartFloor(int number)
     {
-        var builder = number % Config.BossRushEvery == 0 ? _bossRushBuilder : _standardBuilder;
-        Floor = _director.Construct(builder, number);
+        Floor = _dungeon.CreateFloor(number);
         EnterRoom(Floor.Start, null);
         int i = 0;
         foreach (var p in Players.Values)
@@ -115,9 +112,7 @@ public sealed class World
         room.Visited = true;
         Tears.Clear();
         Enemies.Clear();
-        if (!room.Cleared)
-            foreach (var spawn in room.Spawns)
-                Enemies.Add(Floor.EnemyFactory.Create(spawn, Floor.Number));
+        Enemies.AddRange(_dungeon.SpawnEnemies(Floor, room));
 
         if (enteredThrough is { } dir)
         {

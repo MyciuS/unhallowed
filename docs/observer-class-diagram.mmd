@@ -39,7 +39,7 @@ classDiagram
     }
 
     class LootDropper {
-        +LootDropper(EventBus events)
+        +LootDropper(EventBus events, DungeonFacade dungeon)
         +OnEvent(RoomCleared e) void
     }
 

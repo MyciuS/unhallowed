@@ -77,34 +77,18 @@ public sealed class Announcer
     private void Say(string text) => _world.ShowMessage(text);
 }
 
-/// <summary>Drops rewards when rooms are cleared.</summary>
+/// <summary>Drops rewards when rooms are cleared. A client of the <see cref="DungeonFacade"/>.</summary>
 public sealed class LootDropper : IEventListener<RoomCleared>
 {
-    public LootDropper(EventBus events)
+    private readonly DungeonFacade _dungeon;
+
+    public LootDropper(EventBus events, DungeonFacade dungeon)
     {
+        _dungeon = dungeon;
         events.Subscribe(this);
     }
 
-    public void OnEvent(RoomCleared e)
-    {
-        var room = e.Room;
-        // The trapdoor only appears after the floor's last boss (boss rush floors have several).
-        if (room.Kind == RoomKind.Boss && e.Floor.BossRoomsLeft == 0)
-        {
-            room.Pickups.Add(PickupFactory.CreateTrapdoor(Room.Center));
-            room.Pickups.Add(
-                PickupFactory.CreateRandomItemPedestal(
-                    Room.Center + new System.Numerics.Vector2(0, 110),
-                    Random.Shared
-                )
-            );
-        }
-        else if (room.Kind == RoomKind.Boss || Random.Shared.NextSingle() < 0.4f)
-        {
-            // Earlier bosses in a boss rush always leave a heart for the next fight.
-            room.Pickups.Add(PickupFactory.CreateHeart(Room.Center));
-        }
-    }
+    public void OnEvent(RoomCleared e) => _dungeon.DropClearReward(e.Floor, e.Room);
 }
 
 /// <summary>Writes player actions and world events to the <see cref="GameLogger"/>.</summary>
