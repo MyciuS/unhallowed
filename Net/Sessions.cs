@@ -62,6 +62,8 @@ public sealed class HostSession : IGameSession
         }
 
         var builder = WebApplication.CreateSlimBuilder();
+        builder.Logging.ClearProviders();
+        builder.Logging.AddProvider(new GameLoggerProvider(GameLogger.Instance));
         builder.Logging.SetMinimumLevel(LogLevel.Warning);
         // A busy port is reported through Error; skip the hosting stack trace in the console.
         builder.Logging.AddFilter("Microsoft.Extensions.Hosting", LogLevel.None);

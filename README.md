@@ -73,7 +73,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Only five patterns are implemented for now. The rest of the code is intentionally plain, so other
+Only six patterns are implemented for now. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -83,6 +83,22 @@ team members can add their own patterns.
 | **Builder** | `Game/Dungeon/` | `FloorDirector` (Director) runs the same steps (`Reset`, `BuildLayout`, `AssignRoomKinds`, `AddObstacles`, `AddEnemies`, `AddRewards`, `GetResult`) on an `IFloorBuilder` (Builder). `StandardFloorBuilder` and `BossRushFloorBuilder` (Concrete Builders) produce a `Floor` (Product). `World` (Client) picks the builder for each floor. |
 | **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushMonstroEnemy`). |
 | **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
+| **Adapter** | `Core/GameLoggerAdapter.cs`, `Core/GameLoggerProvider.cs` | `GameLoggerAdapter` implements the framework's `ILogger` interface and wraps the existing `GameLogger`. It converts log level, category, event ID, formatted state and exceptions into a string for `GameLogger.Log`. `HostSession` registers the provider so ASP.NET Core and SignalR logs use the game's console/file logger. Existing host filters still apply. |
+
+### Adapter: framework logging to the game logger
+
+The client is ASP.NET Core/SignalR, the target interface is Microsoft's `ILogger`,
+the adapter is `GameLoggerAdapter`, and the adaptee is the existing `GameLogger`.
+`GameLoggerProvider` creates an adapter for each framework logging category.
+The host replaces the default logging providers to avoid duplicate console output.
+
+For example, a framework call to `ILogger.LogWarning("Connection {Id} lost", id)`
+is formatted by the framework, then the adapter adds the level, category and event ID
+and calls `GameLogger.Log(string)`. Exceptions are included with their stack traces.
+Scopes and structured properties are not stored separately because `GameLogger`
+only supports plain text. The provider does not dispose the shared singleton.
+
+See `docs/adapter-class-diagram.mmd` for the class relationships.
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
