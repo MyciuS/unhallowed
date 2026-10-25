@@ -31,9 +31,7 @@ public sealed class GameLogger
         {
             // Log file locked (e.g. a second copy of the game is running): console only.
         }
-        catch (UnauthorizedAccessException)
-        {
-        }
+        catch (UnauthorizedAccessException) { }
     }
 
     public void Log(string message)

@@ -37,8 +37,8 @@ public sealed class HostSession : IGameSession
     private sealed class RemotePlayer(int id)
     {
         public int Id { get; } = id;
-        // The send still in flight to this client; while it runs, newer snapshots are skipped.
-        public Task PendingSend { get; set; } = Task.CompletedTask;
+        // Snapshots sent to this client that it has not acknowledged yet.
+        public int InFlight { get; set; }
     }
 
     private readonly World _world = new();
@@ -135,6 +135,11 @@ public sealed class HostSession : IGameSession
                     !_world.Players.TryGetValue(remote.Id, out var player)) break;
                 input.Input.Sanitized().ApplyTo(player);
                 break;
+
+            case ClientAck:
+                if (_remotes.TryGetValue(e.ConnectionId, out var acked) && acked.InFlight > 0)
+                    acked.InFlight--;
+                break;
         }
     }
 
@@ -163,10 +168,13 @@ public sealed class HostSession : IGameSession
 
         foreach (var (connectionId, remote) in _remotes)
         {
-            // TCP never drops anything, so a slow client would build up a backlog of stale
-            // snapshots. Skipping while the previous send is still running keeps only the newest.
-            if (!remote.PendingSend.IsCompleted) continue;
-            remote.PendingSend = _hub.Clients.Client(connectionId).SendAsync(ClientMethods.Snapshot, Latest);
+            // TCP never drops anything, and SendAsync finishes as soon as the message is buffered,
+            // not when it arrives. Without a limit a slow link fills the buffers with stale snapshots
+            // and the client falls further and further behind. Waiting for acks keeps it current;
+            // snapshots skipped here are simply never sent, the client gets the newest one instead.
+            if (remote.InFlight >= Config.MaxSnapshotsInFlight) continue;
+            remote.InFlight++;
+            _ = _hub.Clients.Client(connectionId).SendAsync(ClientMethods.Snapshot, Latest);
         }
     }
 
@@ -206,6 +214,7 @@ public sealed class ClientSession : IGameSession
     private readonly HubConnection _connection;
     private readonly string _address;
     private Task _pendingSend = Task.CompletedTask;
+    private PlayerInput? _sentInput;
 
     // Written by SignalR callbacks on thread pool threads, read by the game thread.
     private volatile Snapshot? _latest;
@@ -228,7 +237,12 @@ public sealed class ClientSession : IGameSession
             GameLogger.Instance.Log($"Joined {_address} as P{id + 1}");
         });
         // SignalR runs over TCP, so snapshots arrive in order and the newest is always the last one.
-        _connection.On<Snapshot>(ClientMethods.Snapshot, snapshot => _latest = snapshot);
+        // Ack right away instead of on the next frame, so the host can send the next one sooner.
+        _connection.On<Snapshot>(ClientMethods.Snapshot, snapshot =>
+        {
+            _latest = snapshot;
+            _ = _connection.SendAsync(nameof(GameHub.Ack));
+        });
         _connection.On<string>(ClientMethods.Rejected, reason =>
         {
             _error = reason;
@@ -259,9 +273,11 @@ public sealed class ClientSession : IGameSession
     public void Update(float dt, PlayerInput localInput)
     {
         if (_connection.State != HubConnectionState.Connected || _localPlayerId < 0) return;
-        // Input is the full key state every frame, so skipping one while a send is busy loses nothing.
-        if (!_pendingSend.IsCompleted) return;
+        // Input is the full key state and the host keeps the last one, so only changes need sending.
+        // Skipping a frame while a send is busy loses nothing: the next frame sends the newest state.
+        if (localInput == _sentInput || !_pendingSend.IsCompleted) return;
 
+        _sentInput = localInput;
         _pendingSend = _connection.SendAsync(nameof(GameHub.Input), localInput);
     }
 

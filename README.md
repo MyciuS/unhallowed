@@ -77,9 +77,12 @@ The host is authoritative and the clients only render ("dumb clients").
 - The host runs an embedded ASP.NET Core server with a SignalR hub at `/game`. Hub calls arrive on
   thread pool threads, so `GameHub` only queues them and `HostSession` applies them on the game thread.
 - Input and snapshots are sent as JSON objects with the SignalR JSON hub protocol. Host and client share
-  the serializer settings in `NetJson` (public fields included, enums as strings).
-- SignalR runs over TCP and never drops data. If a client is still receiving the previous snapshot, the host
-  skips sending it new ones until that finishes, so a slow client gets the newest state rather than a backlog.
+  the serializer settings in `NetJson` (public fields included, enums as numbers, default values left out).
+  Clients only send their input when it changes.
+- SignalR runs over TCP and never drops data, and a send finishes once the message is buffered, not when it
+  arrives. So clients ack every snapshot, and the host stops sending to a client that has
+  `Config.MaxSnapshotsInFlight` unacked ones. On a slow link the client gets fewer but current snapshots
+  instead of a growing backlog of old ones.
 
 ## Design patterns
 

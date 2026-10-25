@@ -25,7 +25,9 @@ public static class NetJson
     {
         // Snapshot and its views are plain structs with public fields, not properties.
         options.IncludeFields = true;
-        options.Converters.Add(new JsonStringEnumConverter());
+        // Keep snapshots small: enums stay numbers, and false/0 fields are left out
+        // (the reader fills in the same defaults).
+        options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
     }
 }
 
@@ -36,6 +38,8 @@ public sealed record ClientJoined(string ConnectionId) : HubEvent(ConnectionId);
 public sealed record ClientLeft(string ConnectionId) : HubEvent(ConnectionId);
 
 public sealed record ClientInput(string ConnectionId, PlayerInput Input) : HubEvent(ConnectionId);
+
+public sealed record ClientAck(string ConnectionId) : HubEvent(ConnectionId);
 
 /// <summary>
 /// Hub methods run on thread pool threads, but the World is not thread safe.
@@ -67,7 +71,10 @@ public sealed class GameHub(HubInbox inbox) : Hub
         return Task.CompletedTask;
     }
 
-    /// <summary>Called by clients every frame with their current <see cref="PlayerInput"/>.</summary>
+    /// <summary>Called by clients whenever their <see cref="PlayerInput"/> changes.</summary>
     public void Input(PlayerInput input) =>
         inbox.Events.Enqueue(new ClientInput(Context.ConnectionId, input));
+
+    /// <summary>Called by clients for every snapshot they receive.</summary>
+    public void Ack() => inbox.Events.Enqueue(new ClientAck(Context.ConnectionId));
 }
