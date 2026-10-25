@@ -16,6 +16,7 @@
     <Compile Include="Game/**/*.cs" />
     <Compile Include="Net/**/*.cs" />
     <Compile Include="Rendering/**/*.cs" />
+    <Compile Include="Demos/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,7 +26,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.12" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Protocols.MessagePack" Version="10.0.12" />
     <PackageReference Include="Raylib-cs" Version="8.1.0" />
   </ItemGroup>
 

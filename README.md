@@ -39,6 +39,18 @@ dotnet publish -c Release -r win-x64 --self-contained true -o publish/win-x64
 
 This command also works from Linux. Zip the `publish/win-x64` folder and send it.
 
+**Pattern demos:** `dotnet run -- --demo prototype` runs a console demonstration instead of the game.
+
+## Dedicated server (headless Linux)
+
+`--server` runs the host without a window, so it works on a server with no display. It runs in Docker. All 4 slots go
+to remote players, and the game restarts by itself 5 seconds after a game over or once everyone has left.
+
+```sh
+docker compose up -d --build   # builds the image and listens on TCP 7777
+docker compose logs -f         # joins, leaves, restarts
+```
+
 **Controls:** WASD to move, arrow keys to shoot, Esc to go back to the menu, and R to restart after a game over (host only).
 
 ## Gameplay
@@ -59,21 +71,24 @@ The host is authoritative and the clients only render ("dumb clients").
  client                                   host
  PlayerInput.ReadKeyboard() --(SignalR)-->  GameHub -> PlayerInput.ApplyTo(player)
                                              World.Update() at a fixed 60 Hz
- Renderer.Draw(snapshot) <--(SignalR)--     World.BuildSnapshot() -> Snapshot.Write()
+ Renderer.Draw(snapshot) <--(SignalR)--     World.BuildSnapshot() -> JSON
 ```
 
 - Clients never run game logic. They send their input and draw the newest `Snapshot`.
 - The host draws exactly the same `Snapshot` object, so host and clients share one render path.
 - The host runs an embedded ASP.NET Core server with a SignalR hub at `/game`. Hub calls arrive on
   thread pool threads, so `GameHub` only queues them and `HostSession` applies them on the game thread.
-- Input and snapshots are packed into small binary blobs (`BinaryWriter`) and sent with the
-  MessagePack hub protocol, so they aren't base64-encoded inside JSON.
-- SignalR runs over TCP and never drops data. If a client is still receiving the previous snapshot, the host
-  skips sending it new ones until that finishes, so a slow client gets the newest state rather than a backlog.
+- Input and snapshots are sent as JSON objects with the SignalR JSON hub protocol. Host and client share
+  the serializer settings in `NetJson` (public fields included, enums as numbers, default values left out).
+  Clients only send their input when it changes.
+- SignalR runs over TCP and never drops data, and a send finishes once the message is buffered, not when it
+  arrives. So clients ack every snapshot, and the host stops sending to a client that has
+  `Config.MaxSnapshotsInFlight` unacked ones. On a slow link the client gets fewer but current snapshots
+  instead of a growing backlog of old ones.
 
 ## Design patterns
 
-Only six patterns are implemented for now. The rest of the code is intentionally plain, so other
+Six patterns are implemented so far. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -83,22 +98,7 @@ team members can add their own patterns.
 | **Builder** | `Game/Dungeon/` | `FloorDirector` (Director) runs the same steps (`Reset`, `BuildLayout`, `AssignRoomKinds`, `AddObstacles`, `AddEnemies`, `AddRewards`, `GetResult`) on an `IFloorBuilder` (Builder). `StandardFloorBuilder` and `BossRushFloorBuilder` (Concrete Builders) produce a `Floor` (Product). `World` (Client) picks the builder for each floor. |
 | **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushMonstroEnemy`). |
 | **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
-| **Adapter** | `Core/GameLoggerAdapter.cs`, `Core/GameLoggerProvider.cs` | `GameLoggerAdapter` implements the framework's `ILogger` interface and wraps the existing `GameLogger`. It converts log level, category, event ID, formatted state and exceptions into a string for `GameLogger.Log`. `HostSession` registers the provider so ASP.NET Core and SignalR logs use the game's console/file logger. Existing host filters still apply. |
-
-### Adapter: framework logging to the game logger
-
-The client is ASP.NET Core/SignalR, the target interface is Microsoft's `ILogger`,
-the adapter is `GameLoggerAdapter`, and the adaptee is the existing `GameLogger`.
-`GameLoggerProvider` creates an adapter for each framework logging category.
-The host replaces the default logging providers to avoid duplicate console output.
-
-For example, a framework call to `ILogger.LogWarning("Connection {Id} lost", id)`
-is formatted by the framework, then the adapter adds the level, category and event ID
-and calls `GameLogger.Log(string)`. Exceptions are included with their stack traces.
-Scopes and structured properties are not stored separately because `GameLogger`
-only supports plain text. The provider does not dispose the shared singleton.
-
-See `docs/adapter-class-diagram.mmd` for the class relationships.
+| **Prototype** | `Core/IPrototype.cs`, `Game/Characters/`, `Game/Items/Stats.cs` | Each playable character (Isaac, Magdalene, Cain, Judas) is a configured `Character` prototype in a `CharacterRegistry`. Every player gets a deep clone of one, which becomes their own stats and item list. `dotnet run -- --demo prototype` compares shallow and deep copies with memory addresses. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -117,8 +117,10 @@ Plain code that other patterns could replace:
 ## Project layout
 
 ```
-Core/        config, event bus and logger
+Core/        config, event bus, logger and the prototype interface
+Demos/       console demonstrations of the patterns (--demo)
 Game/        World simulation, player input, events and listeners
+  Characters/ character prototypes and their registry
   Dungeon/   rooms, floor director and the two floor builders
   Entities/  player, enemies (with their AI), tears, pickups
   Items/     player stats and item catalog
