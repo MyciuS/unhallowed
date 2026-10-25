@@ -13,6 +13,7 @@ public struct PlayerView
     public bool Blink;
     public float Damage, Speed, TearsPerSecond;
     public byte ItemCount;
+    public string Character;
 }
 
 public struct EnemyView

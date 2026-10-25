@@ -39,6 +39,8 @@ dotnet publish -c Release -r win-x64 --self-contained true -o publish/win-x64
 
 This command also works from Linux. Zip the `publish/win-x64` folder and send it.
 
+**Pattern demos:** `dotnet run -- --demo prototype` runs a console demonstration instead of the game.
+
 ## Dedicated server (headless Linux)
 
 `--server` runs the host without a window, so it works on a server with no display. It runs in Docker. All 4 slots go
@@ -86,7 +88,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Only five patterns are implemented for now. The rest of the code is intentionally plain, so other
+Six patterns are implemented so far. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -96,6 +98,7 @@ team members can add their own patterns.
 | **Builder** | `Game/Dungeon/` | `FloorDirector` (Director) runs the same steps (`Reset`, `BuildLayout`, `AssignRoomKinds`, `AddObstacles`, `AddEnemies`, `AddRewards`, `GetResult`) on an `IFloorBuilder` (Builder). `StandardFloorBuilder` and `BossRushFloorBuilder` (Concrete Builders) produce a `Floor` (Product). `World` (Client) picks the builder for each floor. |
 | **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushMonstroEnemy`). |
 | **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
+| **Prototype** | `Core/IPrototype.cs`, `Game/Characters/`, `Game/Items/Stats.cs` | Each playable character (Isaac, Magdalene, Cain, Judas) is a configured `Character` prototype in a `CharacterRegistry`. Every player gets a deep clone of one, which becomes their own stats and item list. `dotnet run -- --demo prototype` compares shallow and deep copies with memory addresses. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -114,8 +117,10 @@ Plain code that other patterns could replace:
 ## Project layout
 
 ```
-Core/        config, event bus and logger
+Core/        config, event bus, logger and the prototype interface
+Demos/       console demonstrations of the patterns (--demo)
 Game/        World simulation, player input, events and listeners
+  Characters/ character prototypes and their registry
   Dungeon/   rooms, floor director and the two floor builders
   Entities/  player, enemies (with their AI), tears, pickups
   Items/     player stats and item catalog

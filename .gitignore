@@ -28,5 +28,8 @@ unhallowed.sqlite*
 *.mdzip.bak
 *.lck
 
+## UML generator output
+tools/uml/out/
+
 ## Builds
 publish/

@@ -16,6 +16,7 @@
     <Compile Include="Game/**/*.cs" />
     <Compile Include="Net/**/*.cs" />
     <Compile Include="Rendering/**/*.cs" />
+    <Compile Include="Demos/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

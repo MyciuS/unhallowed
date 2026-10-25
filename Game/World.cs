@@ -1,5 +1,6 @@
 using System.Numerics;
 using Isaac.Core;
+using Isaac.Game.Characters;
 using Isaac.Game.Dungeon;
 using Isaac.Game.Entities;
 using Isaac.Net;
@@ -17,6 +18,7 @@ public sealed class World
     private readonly FloorDirector _director = new();
     private readonly IFloorBuilder _standardBuilder = new StandardFloorBuilder();
     private readonly IFloorBuilder _bossRushBuilder = new BossRushFloorBuilder();
+    private readonly CharacterRegistry _characters = CharacterRegistry.CreateDefault();
     private float _messageTimer;
     private float _transitionCooldown;
 
@@ -44,7 +46,10 @@ public sealed class World
 
     public Player AddPlayer(int id)
     {
-        var p = new Player(id) { Pos = Room.Center + new Vector2((id - 1.5f) * 50, 60) };
+        var p = new Player(id, _characters.CreateForPlayer(id))
+        {
+            Pos = Room.Center + new Vector2((id - 1.5f) * 50, 60),
+        };
         Players[id] = p;
         return p;
     }
@@ -456,6 +461,7 @@ public sealed class World
                     Speed = MathF.Round(p.Stats.Speed),
                     TearsPerSecond = MathF.Round(1f / p.Stats.FireDelay, 2),
                     ItemCount = (byte)p.Items.Count,
+                    Character = p.Character.Name,
                 }
             );
         }
