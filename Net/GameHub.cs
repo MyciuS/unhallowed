@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Isaac.Core;
+using Isaac.Game;
 using Microsoft.AspNetCore.SignalR;
 
 namespace Isaac.Net;
@@ -8,8 +11,24 @@ namespace Isaac.Net;
 public static class ClientMethods
 {
     public const string Welcome = "Welcome"; // byte: your player id
-    public const string Snapshot = "Snapshot"; // byte[]: Snapshot.Write output
+    public const string Snapshot = "Snapshot"; // Snapshot
     public const string Rejected = "Rejected"; // string: reason
+}
+
+/// <summary>
+/// JSON settings shared by the host and the clients. Both sides must use the same ones,
+/// otherwise they can't read each other's messages.
+/// </summary>
+public static class NetJson
+{
+    public static void Configure(JsonSerializerOptions options)
+    {
+        // Snapshot and its views are plain structs with public fields, not properties.
+        options.IncludeFields = true;
+        // Keep snapshots small: enums stay numbers, and false/0 fields are left out
+        // (the reader fills in the same defaults).
+        options.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault;
+    }
 }
 
 public abstract record HubEvent(string ConnectionId);
@@ -18,7 +37,9 @@ public sealed record ClientJoined(string ConnectionId) : HubEvent(ConnectionId);
 
 public sealed record ClientLeft(string ConnectionId) : HubEvent(ConnectionId);
 
-public sealed record ClientInput(string ConnectionId, byte[] Data) : HubEvent(ConnectionId);
+public sealed record ClientInput(string ConnectionId, PlayerInput Input) : HubEvent(ConnectionId);
+
+public sealed record ClientAck(string ConnectionId) : HubEvent(ConnectionId);
 
 /// <summary>
 /// Hub methods run on thread pool threads, but the World is not thread safe.
@@ -50,7 +71,10 @@ public sealed class GameHub(HubInbox inbox) : Hub
         return Task.CompletedTask;
     }
 
-    /// <summary>Called by clients every frame with their serialized <see cref="Isaac.Game.PlayerInput"/>.</summary>
-    public void Input(byte[] data) =>
-        inbox.Events.Enqueue(new ClientInput(Context.ConnectionId, data));
+    /// <summary>Called by clients whenever their <see cref="PlayerInput"/> changes.</summary>
+    public void Input(PlayerInput input) =>
+        inbox.Events.Enqueue(new ClientInput(Context.ConnectionId, input));
+
+    /// <summary>Called by clients for every snapshot they receive.</summary>
+    public void Ack() => inbox.Events.Enqueue(new ClientAck(Context.ConnectionId));
 }

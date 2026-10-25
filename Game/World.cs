@@ -456,9 +456,10 @@ public sealed class World
                     Health = (byte)p.Health,
                     MaxHealth = (byte)p.Stats.MaxHealth,
                     Blink = p.Invuln > 0,
-                    Damage = p.Stats.Damage,
-                    Speed = p.Stats.Speed,
-                    TearsPerSecond = 1f / p.Stats.FireDelay,
+                    // Rounded so the JSON doesn't carry digits the HUD never shows.
+                    Damage = MathF.Round(p.Stats.Damage, 2),
+                    Speed = MathF.Round(p.Stats.Speed),
+                    TearsPerSecond = MathF.Round(1f / p.Stats.FireDelay, 2),
                     ItemCount = (byte)p.Items.Count,
                     Character = p.Character.Name,
                 }

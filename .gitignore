@@ -30,3 +30,6 @@ unhallowed.sqlite*
 
 ## UML generator output
 tools/uml/out/
+
+## Builds
+publish/

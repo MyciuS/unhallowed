@@ -25,7 +25,10 @@ public static class Config
 
     // Networking.
     public const int DefaultPort = 7777;
-    public const string ConnectionKey = "isaac-coop-v1";
+    public const string ConnectionKey = "isaac-coop-v2";
+    // Snapshots a client may have unacknowledged before the host stops sending it more.
+    // Bounds the lag to a few snapshots no matter how slow the link is; 6 keeps 60 Hz up to ~100 ms ping.
+    public const int MaxSnapshotsInFlight = 6;
     public const int MaxPlayers = 4;
     public static readonly TimeSpan KeepAliveInterval = TimeSpan.FromSeconds(2);
     public static readonly TimeSpan DisconnectTimeout = TimeSpan.FromSeconds(5);

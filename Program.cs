@@ -1,4 +1,5 @@
 using Isaac;
+using Isaac.Core;
 using Isaac.Demos;
 using Isaac.Net;
 
@@ -7,7 +8,15 @@ using Isaac.Net;
 //   dotnet run -- --host       -> host a co-op game immediately
 //   dotnet run -- --join IP    -> join a host (IP or IP:PORT)
 //   dotnet run -- --solo       -> singleplayer
+//   dotnet run -- --server [PORT] -> headless dedicated server, no window (e.g. on a VPS)
 //   dotnet run -- --demo NAME  -> console demo of a design pattern (e.g. prototype)
+if (args is ["--server", ..])
+{
+    int port = args.Length > 1 && int.TryParse(args[1], out int p) ? p : Config.DefaultPort;
+    DedicatedServer.Run(port);
+    return;
+}
+
 if (args is ["--demo", var demoName, ..])
 {
     PatternDemos.Run(demoName);

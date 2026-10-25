@@ -25,15 +25,14 @@ public readonly record struct PlayerInput(Vector2 Move, Vector2 Shoot)
         player.ShootIntent = Shoot;
     }
 
-    public void Write(BinaryWriter writer)
-    {
-        writer.Write((sbyte)MathF.Sign(Move.X));
-        writer.Write((sbyte)MathF.Sign(Move.Y));
-        writer.Write((sbyte)MathF.Sign(Shoot.X));
-        writer.Write((sbyte)MathF.Sign(Shoot.Y));
-    }
+    /// <summary>
+    /// Input from a client is untrusted JSON. Reduce each axis to -1, 0 or 1, the same values
+    /// the keyboard produces, so a client can't move or shoot faster by sending bigger numbers.
+    /// </summary>
+    public PlayerInput Sanitized() => new(
+        new Vector2(Sign(Move.X), Sign(Move.Y)),
+        new Vector2(Sign(Shoot.X), Sign(Shoot.Y)));
 
-    public static PlayerInput Read(BinaryReader reader) => new(
-        new Vector2(reader.ReadSByte(), reader.ReadSByte()),
-        new Vector2(reader.ReadSByte(), reader.ReadSByte()));
+    // Unlike MathF.Sign this does not throw on NaN.
+    private static float Sign(float v) => v > 0 ? 1 : v < 0 ? -1 : 0;
 }
