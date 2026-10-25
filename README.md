@@ -39,7 +39,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -o publish/win-x64
 
 This command also works from Linux. Zip the `publish/win-x64` folder and send it.
 
-**Pattern demos:** `dotnet run -- --demo prototype` runs a console demonstration instead of the game.
+**Pattern demos:** `dotnet run -- --demo prototype` (or `bridge`) runs a console demonstration instead of the game.
 
 ## Dedicated server (headless Linux)
 
@@ -88,7 +88,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Six patterns are implemented so far. The rest of the code is intentionally plain, so other
+Seven patterns are implemented so far. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -99,6 +99,7 @@ team members can add their own patterns.
 | **Abstract Factory** | `Game/Entities/EnemyFactory.cs`, `Game/Entities/Enemy.cs` | `IEnemyFactory` defines creation methods for a family of related enemies (`CreateSwarmEnemy`, `CreateChaserEnemy`, `CreateShooterEnemy`, `CreateRusherEnemy`, `CreateBoss`). `StandardEnemyFactory` creates the standard enemy family (`FlyEnemy`, `GaperEnemy`, `SpitterEnemy`, `ChargerEnemy`, `MonstroEnemy`), while `BossRushEnemyFactory` creates the boss-rush family (`BossRushFlyEnemy`, `BossRushGaperEnemy`, `BossRushSpitterEnemy`, `BossRushMonstroEnemy`). |
 | **Factory** | `Game/Entities/PickupFactory.cs`, `Game/Entities/Pickup.cs` | `PickupFactory` centralizes pickup creation and returns the base `Pickup` type while creating at least three concrete product classes: `HeartPickup`, `ItemPickup` and `TrapdoorPickup`. |
 | **Prototype** | `Core/IPrototype.cs`, `Game/Characters/`, `Game/Items/Stats.cs` | Each playable character (Isaac, Magdalene, Cain, Judas) is a configured `Character` prototype in a `CharacterRegistry`. Every player gets a deep clone of one, which becomes their own stats and item list. `dotnet run -- --demo prototype` compares shallow and deep copies with memory addresses. |
+| **Bridge** | `Rendering/` | HUD widgets (`HudWidget` Abstraction, refined by `MinimapWidget` and `BossBarWidget`) decide what to show and hand every shape to an `ICanvas` (Implementor). `RaylibCanvas` draws into the game window and `SvgCanvas` writes an SVG image, so widgets and devices can be added independently. `dotnet run -- --demo bridge` draws the same widgets on both canvases. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -125,7 +126,7 @@ Game/        World simulation, player input, events and listeners
   Entities/  player, enemies (with their AI), tears, pickups
   Items/     player stats and item catalog
 Net/         snapshot serialization, host and client sessions
-Rendering/   shape-based renderer (no assets needed)
+Rendering/   shape-based renderer (no assets needed), HUD widgets and their canvases
 IsaacGame.cs window and main loop, switches between menu and game
 Menu.cs      main menu
 ```
