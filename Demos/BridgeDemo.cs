@@ -45,11 +45,12 @@ public static class BridgeDemo
         var canvas = new SvgCanvas(Width, Height, Background);
         foreach (var widget in CreateWidgets(canvas))
             widget.Draw(snapshot);
-        File.WriteAllText(SvgFile, canvas.ToSvg());
+        string svg = canvas.ToSvg();
+        File.WriteAllText(SvgFile, svg);
 
         Console.WriteLine();
         Console.WriteLine("== MinimapWidget + BossBarWidget on an SvgCanvas ==");
-        Console.Write(canvas.ToSvg());
+        Console.Write(svg);
         Console.WriteLine($"  saved to {Path.GetFullPath(SvgFile)} (open it in a browser)");
     }
 
@@ -57,10 +58,15 @@ public static class BridgeDemo
     {
         Console.WriteLine();
         Console.WriteLine("== The same widgets on a RaylibCanvas ==");
-        Console.WriteLine("  a window is open now; close it or press Esc to finish");
 
         Raylib.SetTraceLogLevel(TraceLogLevel.Warning);
         Raylib.InitWindow(Width, Height, "Bridge demo: RaylibCanvas");
+        if (!Raylib.IsWindowReady())
+        {
+            Console.WriteLine("  no display to open a window on; the SVG above is the whole demo here");
+            return;
+        }
+        Console.WriteLine("  a window is open now; close it or press Esc to finish");
         Raylib.SetTargetFPS(30);
         var widgets = CreateWidgets(new RaylibCanvas());
         while (!Raylib.WindowShouldClose())

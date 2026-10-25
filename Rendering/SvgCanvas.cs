@@ -7,7 +7,7 @@ namespace Isaac.Rendering;
 
 /// <summary>
 /// BRIDGE pattern, a Concrete Implementor: writes the drawing out as an SVG image instead of
-/// showing it, so the HUD can be exported without a window or a graphics card.
+/// showing it, so HUD widgets can be exported without a window or a graphics card.
 /// </summary>
 public sealed class SvgCanvas : ICanvas
 {
