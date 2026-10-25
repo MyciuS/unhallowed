@@ -52,7 +52,11 @@ public sealed class DevConsole
 
     public bool IsOpen { get; private set; }
 
-    /// <summary>Handles the keys that open and close the console. Call before the game reads input.</summary>
+    /// <summary>
+    /// Handles the keys that open and close the console. Call before the game handles Esc. Movement
+    /// and shooting keep going to the game while the console is open: a host has to keep simulating
+    /// for the players connected to it.
+    /// </summary>
     public void Update()
     {
         if (Raylib.IsKeyPressed(KeyboardKey.F6))
@@ -123,7 +127,7 @@ public sealed class DevConsole
         int y = Top + 28;
         foreach (var (label, item) in ItemCheats)
         {
-            if (Button(new Rectangle(x, y, ButtonW, ButtonH), label, enabled: me != null))
+            if (Button(new Rectangle(x, y, ButtonW, ButtonH), label, enabled: me is { Alive: true }))
             {
                 world.GiveItem(me!, item);
                 _status = $"Gave {label}";
@@ -149,7 +153,7 @@ public sealed class DevConsole
         }
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Go to boss room"))
-            _status = world.EnterBossRoom() ? "Entered the boss room" : "Every boss on this floor is already beaten";
+            _status = world.EnterBossRoom() ? "Entered the boss room" : "No other boss room left to fight on this floor";
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Next floor"))
         {
@@ -241,21 +245,20 @@ public sealed class DevConsole
     {
         Raylib.DrawRectangleRec(box, Color.Black);
         Raylib.DrawRectangleLinesEx(box, 1, Border);
-        string text = _demos.Running != null ? $"Running --demo {_demos.Running} ..."
-            : _demos.Finished != null ? _demos.Output
-            : "Pick a pattern and press Run demo. The output is the same as in the terminal.";
+        IReadOnlyList<string> lines = _demos.Running != null ? [$"Running --demo {_demos.Running} ..."]
+            : _demos.Finished != null ? _demos.Lines
+            : ["Pick a pattern and press Run demo. The output is the same as in the terminal."];
 
-        string[] lines = text.Replace("\r", "").Split('\n');
         int visible = (int)(box.Height - 12) / OutputLine;
-        _scroll = Math.Min(_scroll, Math.Max(0, lines.Length - visible));
+        _scroll = Math.Min(_scroll, Math.Max(0, lines.Count - visible));
 
         Raylib.BeginScissorMode((int)box.X + 1, (int)box.Y + 1, (int)box.Width - 2, (int)box.Height - 2);
-        for (int i = 0; i < visible && _scroll + i < lines.Length; i++)
+        for (int i = 0; i < visible && _scroll + i < lines.Count; i++)
             Raylib.DrawTextEx(Mono, lines[_scroll + i], new Vector2(box.X + 8, box.Y + 6 + i * OutputLine), OutputSize, 0, Renderer.Text);
         Raylib.EndScissorMode();
 
-        if (lines.Length > visible)
-            Raylib.DrawText($"{_scroll + 1}-{Math.Min(lines.Length, _scroll + visible)} of {lines.Length}  (mouse wheel)",
+        if (lines.Count > visible)
+            Raylib.DrawText($"{_scroll + 1}-{Math.Min(lines.Count, _scroll + visible)} of {lines.Count}  (mouse wheel)",
                 (int)box.X, (int)(box.Y + box.Height + 2), 12, Renderer.TextDim);
     }
 
@@ -266,8 +269,16 @@ public sealed class DevConsole
         {
             if (_monoLoaded) return _mono;
             string consolas = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "consola.ttf");
-            _mono = File.Exists(consolas) ? Raylib.LoadFontEx(consolas, OutputSize * 2, null!, 0) : Raylib.GetFontDefault();
-            Raylib.SetTextureFilter(_mono.Texture, TextureFilter.Bilinear);
+            if (File.Exists(consolas))
+            {
+                _mono = Raylib.LoadFontEx(consolas, OutputSize * 2, null!, 0);
+                Raylib.SetTextureFilter(_mono.Texture, TextureFilter.Bilinear);
+            }
+            else
+            {
+                // Raylib's default font is shared with all other text, so its filter is left alone.
+                _mono = Raylib.GetFontDefault();
+            }
             _monoLoaded = true;
             return _mono;
         }

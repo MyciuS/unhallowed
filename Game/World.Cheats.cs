@@ -1,4 +1,3 @@
-using System.Numerics;
 using Isaac.Game.Dungeon;
 using Isaac.Game.Entities;
 using Isaac.Game.Items;
@@ -20,8 +19,12 @@ public sealed partial class World
     /// <summary>Kills every enemy in the room; they count as normal kills for score and loot.</summary>
     public void KillAllEnemies()
     {
-        foreach (var e in Enemies)
-            e.TakeDamage(e.Hp);
+        // Removed right away: enemies only marked dead would still move, shoot and touch players
+        // for one more tick before the sweep in UpdateTears.
+        var killed = Enemies.ToList();
+        Enemies.Clear();
+        foreach (var e in killed)
+            Events.Publish(new EnemyKilled(e));
     }
 
     /// <summary>Gives <paramref name="player"/> an item as if it was picked up.</summary>
@@ -31,22 +34,24 @@ public sealed partial class World
         Events.Publish(new ItemPickedUp(player, item));
     }
 
-    /// <summary>Refills <paramref name="player"/>'s health, reviving them if they are down.</summary>
-    public void Heal(Player player) => player.Health = player.Stats.MaxHealth;
+    /// <summary>Refills <paramref name="player"/>'s health, reviving them if they are down, even after a game over.</summary>
+    public void Heal(Player player)
+    {
+        player.Health = player.Stats.MaxHealth;
+        GameOver = false;
+    }
 
     public void SkipToNextFloor() => StartFloor(Floor.Number + 1);
 
-    /// <returns>False when every boss room on this floor is already cleared.</returns>
+    /// <returns>False when there is no other boss room left to fight on this floor.</returns>
     public bool EnterBossRoom()
     {
-        var boss = Floor.Rooms.Values.FirstOrDefault(r => r.Kind == RoomKind.Boss && !r.Cleared);
+        // Skips the room the players are in: entering it again would respawn the boss at full health.
+        var boss = Floor.Rooms.Values.FirstOrDefault(r => r.Kind == RoomKind.Boss && !r.Cleared && r != Room);
         if (boss == null) return false;
 
-        EnterRoom(boss, null);
-        var entry = Room.DoorEntry(Direction.Down);
-        int i = 0;
-        foreach (var p in Players.Values)
-            p.Pos = entry + Vector2.UnitX * ((i++ - (Players.Count - 1) / 2f) * 48);
+        // As if walking in through the bottom door, so players appear away from the boss.
+        EnterRoom(boss, Direction.Up);
         return true;
     }
 

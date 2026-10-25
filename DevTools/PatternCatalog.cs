@@ -39,11 +39,16 @@ public static class PatternCatalog
 
     private static readonly HashSet<string> Names = CollectNames();
 
-    public static bool IsInBuild(PatternInfo pattern) => pattern.Markers.All(Names.Contains);
+    // Neither answer can change while the program runs, so both are worked out once.
+    private static readonly HashSet<PatternInfo> InBuild = All.Where(p => p.Markers.All(Names.Contains)).ToHashSet();
+    private static readonly Dictionary<PatternInfo, string?> Demos = All.ToDictionary(
+        p => p,
+        p => PatternDemos.Names.FirstOrDefault(name => Letters(name) == Letters(p.Name)));
+
+    public static bool IsInBuild(PatternInfo pattern) => InBuild.Contains(pattern);
 
     /// <summary>The <c>--demo</c> name of <paramref name="pattern"/>, or null if it has no demo yet.</summary>
-    public static string? DemoFor(PatternInfo pattern) =>
-        PatternDemos.Names.FirstOrDefault(name => Letters(name) == Letters(pattern.Name));
+    public static string? DemoFor(PatternInfo pattern) => Demos[pattern];
 
     private static string Letters(string s) => new(s.Where(char.IsLetter).Select(char.ToLowerInvariant).ToArray());
 

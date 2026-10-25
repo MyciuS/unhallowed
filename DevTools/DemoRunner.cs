@@ -13,7 +13,8 @@ public sealed class DemoRunner
     /// <summary>The demo whose output is in <see cref="Output"/>.</summary>
     public string? Finished { get; private set; }
 
-    public string Output { get; private set; } = "";
+    /// <summary>What the finished demo printed, one entry per line.</summary>
+    public IReadOnlyList<string> Lines { get; private set; } = [];
 
     public void Start(string demo)
     {
@@ -27,7 +28,7 @@ public sealed class DemoRunner
     public void Poll()
     {
         if (_task is not { IsCompleted: true } task || Running == null) return;
-        Output = task.IsFaulted ? task.Exception!.GetBaseException().ToString() : task.Result;
+        Lines = task.Result.Replace("\r", "").Split('\n');
         Finished = Running;
         Running = null;
         _task = null;
@@ -43,6 +44,11 @@ public sealed class DemoRunner
         try
         {
             demo();
+        }
+        catch (Exception ex)
+        {
+            writer.WriteLine();
+            writer.WriteLine($"The demo failed: {ex}");
         }
         finally
         {
