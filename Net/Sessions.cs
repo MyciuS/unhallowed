@@ -47,7 +47,9 @@ public sealed class HostSession : IGameSession
     private readonly HubInbox _inbox = new();
     private readonly Dictionary<string, RemotePlayer> _remotes = new();
     private readonly bool _dedicated;
+    private readonly DateTimeOffset _startedAt = DateTimeOffset.UtcNow;
     private float _accumulator;
+    private volatile Snapshot? _latest;
 
     /// <param name="dedicated">
     /// Headless server: no local player, so every slot goes to a remote player
@@ -79,6 +81,7 @@ public sealed class HostSession : IGameSession
             .AddJsonProtocol(o => NetJson.Configure(o.PayloadSerializerOptions));
         var server = builder.Build();
         server.MapHub<GameHub>(GameHub.Path);
+        server.MapGet("/", DescribeStatus);
         try
         {
             server.Start();
@@ -97,7 +100,12 @@ public sealed class HostSession : IGameSession
 
     public bool IsHost => true;
     public int LocalPlayerId => LocalId;
-    public Snapshot? Latest { get; private set; }
+    public Snapshot? Latest
+    {
+        get => _latest;
+        private set => _latest = value;
+    }
+
     public string Status { get; } = "";
     public string? Error { get; }
     public int RemotePlayers => _remotes.Count;
@@ -197,6 +205,42 @@ public sealed class HostSession : IGameSession
     {
         GameLogger.Instance.Log("Game restarted");
         _world.Restart();
+    }
+
+    /// <summary>The JSON a browser gets at the server's root address.</summary>
+    private object DescribeStatus()
+    {
+        // Runs on a web server thread while the game thread changes the World, so it reads
+        // only the last published snapshot.
+        var s = Latest;
+        return new
+        {
+            service = "isaac-coop",
+            hub = GameHub.Path,
+            mode = _dedicated ? "dedicated" : "player-hosted",
+            tickRate = Config.TickRate,
+            maxPlayers = Config.MaxPlayers,
+            startedAt = _startedAt,
+            uptime = (DateTimeOffset.UtcNow - _startedAt).ToString(@"d\.hh\:mm\:ss"),
+            playerCount = s?.Players.Count ?? 0,
+            game = s == null
+                ? null
+                : new
+                {
+                    floor = s.Floor,
+                    score = s.Score,
+                    room = s.RoomKind.ToString(),
+                    gameOver = s.GameOver,
+                    players = s.Players.Select(p => new
+                    {
+                        player = $"P{p.Id + 1}",
+                        character = p.Character,
+                        health = p.Health,
+                        maxHealth = p.MaxHealth,
+                        items = p.ItemCount,
+                    }),
+                },
+        };
     }
 
     public void Dispose()
