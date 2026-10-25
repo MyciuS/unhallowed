@@ -46,14 +46,17 @@ public sealed class HostSession : IGameSession
     private readonly IHubContext<GameHub>? _hub;
     private readonly HubInbox _inbox = new();
     private readonly Dictionary<string, RemotePlayer> _remotes = new();
-    private readonly MemoryStream _buffer = new();
-    private readonly BinaryWriter _writer;
+    private readonly bool _dedicated;
     private float _accumulator;
 
-    public HostSession(bool networked, int port = Config.DefaultPort)
+    /// <param name="dedicated">
+    /// Headless server: no local player, so every slot goes to a remote player
+    /// and the game restarts by itself after a game over.
+    /// </param>
+    public HostSession(bool networked, int port = Config.DefaultPort, bool dedicated = false)
     {
-        _writer = new BinaryWriter(_buffer);
-        _world.AddPlayer(LocalId);
+        _dedicated = dedicated;
+        if (!dedicated) _world.AddPlayer(LocalId);
         Latest = _world.BuildSnapshot();
         if (!networked)
         {
@@ -73,7 +76,7 @@ public sealed class HostSession : IGameSession
                 o.KeepAliveInterval = Config.KeepAliveInterval;
                 o.ClientTimeoutInterval = Config.DisconnectTimeout;
             })
-            .AddMessagePackProtocol();
+            .AddJsonProtocol(o => NetJson.Configure(o.PayloadSerializerOptions));
         var server = builder.Build();
         server.MapHub<GameHub>(GameHub.Path);
         try
@@ -104,13 +107,13 @@ public sealed class HostSession : IGameSession
         switch (e)
         {
             case ClientJoined:
-                if (_remotes.Count + 1 >= Config.MaxPlayers)
+                if (_world.Players.Count >= Config.MaxPlayers)
                 {
                     _hub!.Clients.Client(e.ConnectionId).SendAsync(ClientMethods.Rejected, "Game is full");
                     GameLogger.Instance.Log("Rejected a player: game is full");
                     break;
                 }
-                int id = Enumerable.Range(1, Config.MaxPlayers - 1).First(i => !_world.Players.ContainsKey(i));
+                int id = Enumerable.Range(0, Config.MaxPlayers).First(i => !_world.Players.ContainsKey(i));
                 _remotes[e.ConnectionId] = new RemotePlayer(id);
                 _world.AddPlayer(id);
                 _hub!.Clients.Client(e.ConnectionId).SendAsync(ClientMethods.Welcome, (byte)id);
@@ -123,20 +126,14 @@ public sealed class HostSession : IGameSession
                 _world.RemovePlayer(left.Id);
                 _world.ShowMessage($"P{left.Id + 1} left");
                 GameLogger.Instance.Log($"P{left.Id + 1} left");
+                // Nobody left on the dedicated server: the next group starts a fresh run.
+                if (_dedicated && _remotes.Count == 0) _world.Restart();
                 break;
 
             case ClientInput input:
                 if (!_remotes.TryGetValue(e.ConnectionId, out var remote) ||
                     !_world.Players.TryGetValue(remote.Id, out var player)) break;
-                try
-                {
-                    using var reader = new BinaryReader(new MemoryStream(input.Data));
-                    PlayerInput.Read(reader).ApplyTo(player);
-                }
-                catch (IOException)
-                {
-                    // Malformed input from a client: ignore it.
-                }
+                input.Input.Sanitized().ApplyTo(player);
                 break;
         }
     }
@@ -145,7 +142,9 @@ public sealed class HostSession : IGameSession
     {
         while (_inbox.Events.TryDequeue(out var e)) Handle(e);
 
-        if (_world.Players.TryGetValue(LocalId, out var local))
+        if (_dedicated)
+            UpdateAutoRestart(dt);
+        else if (_world.Players.TryGetValue(LocalId, out var local))
             localInput.ApplyTo(local);
 
         // Fixed timestep simulation, independent of the render frame rate.
@@ -162,17 +161,28 @@ public sealed class HostSession : IGameSession
         Latest = _world.BuildSnapshot();
         if (_hub == null || _remotes.Count == 0) return;
 
-        _buffer.SetLength(0);
-        Latest.Write(_writer);
-        _writer.Flush();
-        byte[] data = _buffer.ToArray();
         foreach (var (connectionId, remote) in _remotes)
         {
             // TCP never drops anything, so a slow client would build up a backlog of stale
             // snapshots. Skipping while the previous send is still running keeps only the newest.
             if (!remote.PendingSend.IsCompleted) continue;
-            remote.PendingSend = _hub.Clients.Client(connectionId).SendAsync(ClientMethods.Snapshot, data);
+            remote.PendingSend = _hub.Clients.Client(connectionId).SendAsync(ClientMethods.Snapshot, Latest);
         }
+    }
+
+    private const float AutoRestartDelay = 5f;
+    private float _gameOverTimer;
+
+    // Clients can't press R, so the dedicated server restarts on its own after a short pause.
+    private void UpdateAutoRestart(float dt)
+    {
+        if (!_world.GameOver)
+        {
+            _gameOverTimer = 0;
+            return;
+        }
+        _gameOverTimer += dt;
+        if (_gameOverTimer >= AutoRestartDelay) RequestRestart();
     }
 
     public void RequestRestart()
@@ -194,8 +204,6 @@ public sealed class HostSession : IGameSession
 public sealed class ClientSession : IGameSession
 {
     private readonly HubConnection _connection;
-    private readonly MemoryStream _buffer = new();
-    private readonly BinaryWriter _writer;
     private readonly string _address;
     private Task _pendingSend = Task.CompletedTask;
 
@@ -206,11 +214,10 @@ public sealed class ClientSession : IGameSession
 
     public ClientSession(string host, int port = Config.DefaultPort)
     {
-        _writer = new BinaryWriter(_buffer);
         _address = $"{host}:{port}";
         _connection = new HubConnectionBuilder()
             .WithUrl($"http://{_address}{GameHub.Path}?key={Uri.EscapeDataString(Config.ConnectionKey)}")
-            .AddMessagePackProtocol()
+            .AddJsonProtocol(o => NetJson.Configure(o.PayloadSerializerOptions))
             .Build();
         _connection.ServerTimeout = Config.DisconnectTimeout;
         _connection.KeepAliveInterval = Config.KeepAliveInterval;
@@ -220,7 +227,8 @@ public sealed class ClientSession : IGameSession
             _localPlayerId = id;
             GameLogger.Instance.Log($"Joined {_address} as P{id + 1}");
         });
-        _connection.On<byte[]>(ClientMethods.Snapshot, OnSnapshot);
+        // SignalR runs over TCP, so snapshots arrive in order and the newest is always the last one.
+        _connection.On<Snapshot>(ClientMethods.Snapshot, snapshot => _latest = snapshot);
         _connection.On<string>(ClientMethods.Rejected, reason =>
         {
             _error = reason;
@@ -248,30 +256,13 @@ public sealed class ClientSession : IGameSession
         ? $"Connected to {_address}"
         : $"Connecting to {_address}...";
 
-    private void OnSnapshot(byte[] data)
-    {
-        try
-        {
-            using var reader = new BinaryReader(new MemoryStream(data));
-            // SignalR runs over TCP, so snapshots arrive in order and the newest is always the last one.
-            _latest = Snapshot.Read(reader);
-        }
-        catch (IOException)
-        {
-            // Malformed snapshot: keep the previous one.
-        }
-    }
-
     public void Update(float dt, PlayerInput localInput)
     {
         if (_connection.State != HubConnectionState.Connected || _localPlayerId < 0) return;
         // Input is the full key state every frame, so skipping one while a send is busy loses nothing.
         if (!_pendingSend.IsCompleted) return;
 
-        _buffer.SetLength(0);
-        localInput.Write(_writer);
-        _writer.Flush();
-        _pendingSend = _connection.SendAsync(nameof(GameHub.Input), _buffer.ToArray());
+        _pendingSend = _connection.SendAsync(nameof(GameHub.Input), localInput);
     }
 
     public void RequestRestart()

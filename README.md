@@ -39,6 +39,16 @@ dotnet publish -c Release -r win-x64 --self-contained true -o publish/win-x64
 
 This command also works from Linux. Zip the `publish/win-x64` folder and send it.
 
+## Dedicated server (headless Linux)
+
+`--server` runs the host without a window, so it works on a server with no display. It runs in Docker. All 4 slots go
+to remote players, and the game restarts by itself 5 seconds after a game over or once everyone has left.
+
+```sh
+docker compose up -d --build   # builds the image and listens on TCP 7777
+docker compose logs -f         # joins, leaves, restarts
+```
+
 **Controls:** WASD to move, arrow keys to shoot, Esc to go back to the menu, and R to restart after a game over (host only).
 
 ## Gameplay
@@ -59,15 +69,15 @@ The host is authoritative and the clients only render ("dumb clients").
  client                                   host
  PlayerInput.ReadKeyboard() --(SignalR)-->  GameHub -> PlayerInput.ApplyTo(player)
                                              World.Update() at a fixed 60 Hz
- Renderer.Draw(snapshot) <--(SignalR)--     World.BuildSnapshot() -> Snapshot.Write()
+ Renderer.Draw(snapshot) <--(SignalR)--     World.BuildSnapshot() -> JSON
 ```
 
 - Clients never run game logic. They send their input and draw the newest `Snapshot`.
 - The host draws exactly the same `Snapshot` object, so host and clients share one render path.
 - The host runs an embedded ASP.NET Core server with a SignalR hub at `/game`. Hub calls arrive on
   thread pool threads, so `GameHub` only queues them and `HostSession` applies them on the game thread.
-- Input and snapshots are packed into small binary blobs (`BinaryWriter`) and sent with the
-  MessagePack hub protocol, so they aren't base64-encoded inside JSON.
+- Input and snapshots are sent as JSON objects with the SignalR JSON hub protocol. Host and client share
+  the serializer settings in `NetJson` (public fields included, enums as strings).
 - SignalR runs over TCP and never drops data. If a client is still receiving the previous snapshot, the host
   skips sending it new ones until that finishes, so a slow client gets the newest state rather than a backlog.
 

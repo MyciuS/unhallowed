@@ -1,0 +1,8 @@
+bin/
+obj/
+publish/
+old-patterns/
+docs/
+.git/
+.github/
+game.log
