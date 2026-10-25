@@ -1,0 +1,6 @@
+services:
+  isaac:
+    build: .
+    ports:
+      - "7777:7777"
+    restart: unless-stopped
