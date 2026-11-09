@@ -53,7 +53,7 @@ docker compose logs -f         # joins, leaves, restarts
 
 **Controls:** WASD to move, arrow keys to shoot, Esc to go back to the menu, and R to restart after a game over (host only).
 
-**Developer console:** F6 opens it, F6 or Esc closes it. The Cheats tab (items, heal, kill all enemies, boss room, next floor, reveal map, god mode, one-shot kills) only works in singleplayer or for the host of a co-op game, since the host runs the only real copy of the game. The Patterns tab lists the twelve required patterns, shows which ones are in the current build, and runs their `--demo`s in-game.
+**Developer console:** F6 opens it, F6 or Esc closes it. The Cheats tab (items, heal, kill all enemies, boss room, next floor, reveal map, god mode, one-shot kills) only works in singleplayer or for the host of a co-op game, since the host runs the only real copy of the game. Items, heal, reveal map and the two toggles can be undone and redone with the Undo/Redo buttons or Ctrl+Z / Ctrl+Y. The Patterns tab lists the twelve required patterns, shows which ones are in the current build, and runs their `--demo`s in-game.
 
 ## Gameplay
 
@@ -91,7 +91,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Ten patterns are implemented so far. The rest of the code is intentionally plain, so other
+Eleven patterns are implemented so far. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -106,6 +106,7 @@ team members can add their own patterns.
 | **Facade** | `Game/Dungeon/DungeonFacade.cs` | `DungeonFacade` is the one entry point to the dungeon subsystems (`FloorDirector`, `StandardFloorBuilder`, `BossRushFloorBuilder`, the floor's `IEnemyFactory`, `PickupFactory`). Its clients `World` and `LootDropper` only call `CreateFloor`, `SpawnEnemies` and `DropClearReward`. `dotnet run -- --demo facade` shows each call and both clients. |
 | **Strategy** | `Game/AI/`, `Game/Entities/Enemy.cs` | `Enemy` (Context) delegates to an `IMovementStrategy` (`ChaseMovement`, `BuzzMovement`, `KeepDistanceMovement`, `TakeCoverMovement`, `ChargeMovement`, `BounceMovement`, `JumpMovement`, `SkitterMovement`) and a list of `IAttackStrategy` (`AimedShotAttack`, `LandingRingAttack`, `SpitSprayAttack`). Each enemy subclass picks its strategies in its constructor, and `SetBehaviour` swaps them at runtime: Monstro does this when it drops below half health to enter its enraged phase. |
 | **Decorator** | `Game/Items/Stats.cs`, `Game/Items/ItemDecorators.cs` | `IStats` (Component) is all the game reads. `BaseStats` (Concrete Component) holds a character's stats before any items (each `Character` prototype sets its own). `StatsDecorator` (Decorator) wraps another `IStats` and passes every stat through; each item has a Concrete Decorator (`DamageUpDecorator`, `TearsUpDecorator`, `SpeedUpDecorator`, `RangeUpDecorator`, `HeartContainerDecorator`, `GlassCannonDecorator`) that overrides only the stats it changes. Picking up an item makes `Character.AddItem` wrap the stats in one more layer (`ItemCatalog.Decorate`), so pickup order matters: Glass Cannon doubles all the damage collected before it. |
+| **Command** | `Game/Commands/`, `DevTools/DevConsole.cs` | Each undoable cheat of the F6 console is a command object: `ICommand` (Command) has `Execute()` and `Undo()`, and `GiveItemCommand`, `HealCommand`, `ToggleCheatCommand` and `RevealMapCommand` (Concrete Commands) save what they change just before changing it, then call their Receiver, the `World` or a `Player`. `CommandHistory` (Invoker) runs them and keeps undo and redo stacks without knowing what any command does. `DevConsole` (Client) creates the commands from its buttons and offers Undo/Redo (Ctrl+Z, Ctrl+Y). `dotnet run -- --demo command` executes, undoes and redoes a sequence of cheats. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -115,7 +116,6 @@ Plain code that other patterns could replace:
 | Code | Pattern that would fit |
 |---|---|
 | `IsaacGame` switches between the menu and the game with `if (_session == null)` | State |
-| `PlayerInput` is a plain struct of move and shoot directions | Command |
 | `Enemy` runs a plain list of attack strategies | Composite (one `IAttackStrategy` made of several) |
 | `World.SpawnTear` allocates a new `Tear` for every shot | Object Pool |
 | `HostSession` / `ClientSession` behind `IGameSession` | Proxy |
@@ -128,6 +128,7 @@ Demos/       console demonstrations of the patterns (--demo)
 DevTools/    F6 developer console: cheats and the pattern checklist
 Game/        World simulation, player input, events and listeners
   AI/        enemy movement and attack strategies, pathfinding around rocks
+  Commands/  undoable dev console cheats (command pattern)
   Characters/ character prototypes and their registry
   Dungeon/   rooms, floor director, the two floor builders and the dungeon facade
   Entities/  player, enemies (with their AI), tears, pickups

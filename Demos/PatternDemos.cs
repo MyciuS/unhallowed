@@ -8,6 +8,7 @@ public static class PatternDemos
         ["prototype"] = PrototypeDemo.Run,
         ["bridge"] = BridgeDemo.Run,
         ["facade"] = FacadeDemo.Run,
+        ["command"] = CommandDemo.Run,
     };
 
     public static IReadOnlyCollection<string> Names => All.Keys;

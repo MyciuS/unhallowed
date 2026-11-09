@@ -1,0 +1,106 @@
+classDiagram
+    direction LR
+
+    class ICommand {
+        <<interface>>
+        +string Name
+        +Execute()
+        +Undo()
+    }
+
+    class GiveItemCommand {
+        -World world
+        -Player player
+        -ItemKind item
+        -Character before
+        -int healthBefore
+        +Execute()
+        +Undo()
+    }
+
+    class HealCommand {
+        -World world
+        -Player player
+        -int healthBefore
+        +Execute()
+        +Undo()
+    }
+
+    class ToggleCheatCommand {
+        -World world
+        -Cheat cheat
+        +Execute()
+        +Undo()
+    }
+
+    class RevealMapCommand {
+        -World world
+        -List~Room~ hidden
+        +Execute()
+        +Undo()
+    }
+
+    class Cheat {
+        <<enumeration>>
+        GodMode
+        OneShotKills
+    }
+
+    class CommandHistory {
+        -Stack~ICommand~ undo
+        -Stack~ICommand~ redo
+        +bool CanUndo
+        +bool CanRedo
+        +IEnumerable~ICommand~ Done
+        +Execute(ICommand command)
+        +Undo() ICommand?
+        +Redo() ICommand?
+        +Clear()
+    }
+
+    class DevConsole {
+        -CommandHistory history
+        -Run(ICommand command)
+        -Undo()
+        -Redo()
+    }
+
+    class World {
+        +bool GodMode
+        +bool OneShotKills
+        +GiveItem(Player player, ItemKind item)
+        +Heal(Player player)
+        +RevealMap()
+    }
+
+    class Player {
+        +Character Character
+        +int Health
+        +RestoreLoadout(Character character, int health)
+    }
+
+    class Character {
+        +DeepClone() Character
+    }
+
+    ICommand <|.. GiveItemCommand
+    ICommand <|.. HealCommand
+    ICommand <|.. ToggleCheatCommand
+    ICommand <|.. RevealMapCommand
+
+    CommandHistory o--> "0..*" ICommand : undo / redo stacks
+    DevConsole *--> "1" CommandHistory : invoker
+    DevConsole ..> GiveItemCommand : creates
+    DevConsole ..> HealCommand : creates
+    DevConsole ..> ToggleCheatCommand : creates
+    DevConsole ..> RevealMapCommand : creates
+
+    GiveItemCommand --> World : receiver
+    GiveItemCommand --> Player : receiver
+    GiveItemCommand ..> Character : DeepClone() before
+    HealCommand --> World : receiver
+    HealCommand --> Player : receiver
+    ToggleCheatCommand --> World : receiver
+    ToggleCheatCommand --> Cheat
+    RevealMapCommand --> World : receiver
+    Player --> Character

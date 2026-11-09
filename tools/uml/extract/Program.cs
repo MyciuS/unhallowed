@@ -9,7 +9,7 @@ var root = args[0];
 var output = args[1];
 
 var files = new List<string> { "Program.cs", "IsaacGame.cs", "Menu.cs" }.Select(f => Path.Combine(root, f)).ToList();
-foreach (var dir in new[] { "Core", "Game", "Net", "Rendering", "Demos" })
+foreach (var dir in new[] { "Core", "Game", "Net", "Rendering", "Demos", "DevTools" })
     files.AddRange(Directory.GetFiles(Path.Combine(root, dir), "*.cs", SearchOption.AllDirectories));
 
 var parse = new CSharpParseOptions(LanguageVersion.Preview);
@@ -107,6 +107,25 @@ foreach (var file in files.OrderBy(f => f))
             }
         }
 
+        // A partial class (World is split into World.cs and World.Cheats.cs) is one type in the model:
+        // later parts add their members to the part found first instead of becoming a second type.
+        var first = mods.Contains("partial")
+            ? types.FirstOrDefault(x => (string)x["namespace"] == ns && (string)x["name"] == name)
+            : null;
+        if (first != null)
+        {
+            var firstAttrs = (List<object>)first["attributes"];
+            var firstOps = (List<object>)first["operations"];
+            // The part with the most members is the main one, so its summary describes the type.
+            if (attrs.Count + ops.Count > firstAttrs.Count + firstOps.Count) first["doc"] = t["doc"];
+            firstAttrs.AddRange(attrs);
+            firstOps.AddRange(ops);
+            var firstBases = (List<string>)first["bases"];
+            firstBases.AddRange(bases.Except(firstBases).ToList());
+            bodies.Add((first, decl));
+            continue;
+        }
+
         types.Add(t);
         bodies.Add((t, decl));
     }
@@ -137,6 +156,9 @@ foreach (var (t, node) in bodies)
             if (target != self && simple.ContainsKey(target) && !ownMembers.Contains(target)) uses.Add(target);
         }
     }
+    // A partial class is scanned once per part, so earlier parts' dependencies are kept.
+    if (t.TryGetValue("creates", out var earlierCreates)) creates.UnionWith((List<string>)earlierCreates);
+    if (t.TryGetValue("uses", out var earlierUses)) uses.UnionWith((List<string>)earlierUses);
     uses.ExceptWith(creates);
     t["creates"] = creates.ToList();
     t["uses"] = uses.ToList();

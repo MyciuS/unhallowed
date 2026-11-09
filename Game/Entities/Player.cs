@@ -18,7 +18,7 @@ public sealed class Player
     }
 
     public int Id { get; }
-    public Character Character { get; }
+    public Character Character { get; private set; }
     public Vector2 Pos;
     public Vector2 Vel;
     public IStats Stats => Character.Stats;
@@ -39,6 +39,13 @@ public sealed class Player
         // Gaining a container also fills it; losing one clamps current health.
         if (Stats.MaxHealth > oldMax) Health += Stats.MaxHealth - oldMax;
         Health = Math.Min(Health, Stats.MaxHealth);
+    }
+
+    /// <summary>Puts back a loadout and health saved earlier, e.g. to undo an item pickup.</summary>
+    public void RestoreLoadout(Character character, int health)
+    {
+        Character = character;
+        Health = health;
     }
 
     public bool TryDamage(int halfHearts)

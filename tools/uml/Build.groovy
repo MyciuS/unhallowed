@@ -54,6 +54,9 @@ class Build extends CommandLine {
         'HostSession._world'             : AggregationKindEnum.COMPOSITE,
         'HostSession._inbox'             : AggregationKindEnum.COMPOSITE,
         'IsaacGame._menu'                : AggregationKindEnum.COMPOSITE,
+        'DevConsole._history'            : AggregationKindEnum.COMPOSITE,
+        'CommandHistory._undo'           : AggregationKindEnum.SHARED,
+        'CommandHistory._redo'           : AggregationKindEnum.SHARED,
     ]
 
     protected byte execute() {
@@ -91,13 +94,15 @@ class Build extends CommandLine {
         def full = classDiagram(pkg('Isaac'), 'Isaac Co-op - class diagram')
         def after = classDiagram(pkg('Prototype pattern'), 'Prototype - after')
         def beforeDiagram = classDiagram(pkg('Prototype pattern'), 'Prototype - before')
+        def command = classDiagram(pkg('Command pattern'), 'Command - class diagram')
         safe('main diagram') { fillMainDiagram(main) }
         safe('full diagram') { fillFullDiagram(full, types) }
         safe('after diagram') { fillAfterDiagram(after) }
         safe('before diagram') { fillBeforeDiagram(beforeDiagram, before) }
+        safe('command diagram') { fillCommandDiagram(command) }
         SessionManager.getInstance().closeSession(project)
 
-        [main, full, after, beforeDiagram].each { d -> safe("layout ${d.getHumanName()}") { d.open(); Layouting.layout(d) } }
+        [main, full, after, beforeDiagram, command].each { d -> safe("layout ${d.getHumanName()}") { d.open(); Layouting.layout(d) } }
 
         println "MODEL classifiers=${byName.size()} datatypes=${datatypes.size()} problems=${problems.size()}"
         problems.each { println "  PROBLEM: $it" }
@@ -108,7 +113,7 @@ class Build extends CommandLine {
 
         def images = new File(cfg.images)
         images.mkdirs()
-        [main, full, after, beforeDiagram].each { d ->
+        [main, full, after, beforeDiagram, command].each { d ->
             safe("image ${d.getName()}") {
                 ImageExporter.export(d, ImageExporter.PNG, new File(images, d.getName().replaceAll(/[^A-Za-z0-9-]+/, '_') + '.png'))
             }
@@ -367,6 +372,24 @@ class Build extends CommandLine {
         pem.createShapeElement(note, view)
     }
 
+    // Command: the interface, its four concrete commands and the invoker in full; the client
+    // (DevConsole) and the receivers (World, Player) only as names, to keep it readable. CommandDemo
+    // is left out: it creates every command too, and its lines would bury the pattern.
+    def fillCommandDiagram(view) {
+        ['ICommand', 'GiveItemCommand', 'HealCommand', 'ToggleCheatCommand', 'RevealMapCommand', 'Cheat',
+         'CommandHistory', 'DevConsole', 'World', 'Player', 'Character'].each { n ->
+            def shape = pem.createShapeElement(byName[n], view, true)
+            if (n in ['World', 'DevConsole', 'Player', 'Character']) suppress(shape)
+        }
+        def note = ef.createCommentInstance()
+        note.setBody('Command: each undoable dev console cheat is an ICommand. A concrete command keeps its receiver ' +
+                     '(World, Player) in fields, saves what it is about to change, then calls the receiver; Undo() puts ' +
+                     'the saved state back. CommandHistory (invoker) runs commands and keeps undo/redo stacks without ' +
+                     'knowing what they do. DevConsole (client) creates them from its buttons.')
+        note.setOwner(pkg('Command pattern'))
+        pem.createShapeElement(note, view)
+    }
+
     def fillBeforeDiagram(view, Map before) {
         [before.world, before.player, before.stats, before.itemKind].each { pem.createShapeElement(it, view, true) }
         pem.createShapeElement(before.note, view)
@@ -387,7 +410,7 @@ class Build extends CommandLine {
         String mult = null
         if (t.endsWith('?')) { t = t[0..-2]; mult = '0..1' }
         if (t.endsWith('[]')) { t = t[0..-3]; mult = '*' }
-        def m = t =~ /^(List|IReadOnlyList|IReadOnlyCollection|IEnumerable|ICollection|HashSet|ConcurrentQueue|Queue)<(.+)>$/
+        def m = t =~ /^(List|IReadOnlyList|IReadOnlyCollection|IEnumerable|ICollection|HashSet|ConcurrentQueue|Queue|Stack)<(.+)>$/
         if (m.matches()) { t = m.group(2).trim(); mult = '*' }
         def d = t =~ /^(Dictionary|IReadOnlyDictionary|ConcurrentDictionary)<.+,\s*([A-Za-z0-9_]+)>$/
         if (d.matches()) { t = d.group(2).trim(); mult = '*' }
