@@ -30,14 +30,14 @@ public sealed class CharacterRegistry
     public static CharacterRegistry CreateDefault()
     {
         var registry = new CharacterRegistry();
-        registry.Register(new Character("Isaac", new Stats()));
-        registry.Register(new Character("Magdalene", new Stats { Speed = 220f, MaxHealth = 8 }));
+        registry.Register(new Character("Isaac", new BaseStats()));
+        registry.Register(new Character("Magdalene", new BaseStats { Speed = 220f, MaxHealth = 8 }));
 
-        var cain = new Character("Cain", new Stats { Speed = 300f, Damage = 3f });
+        var cain = new Character("Cain", new BaseStats { Speed = 300f, Damage = 3f });
         cain.AddItem(ItemKind.RangeUp);
         registry.Register(cain);
 
-        registry.Register(new Character("Judas", new Stats { Damage = 4.5f, MaxHealth = 4 }));
+        registry.Register(new Character("Judas", new BaseStats { Damage = 4.5f, MaxHealth = 4 }));
         return registry;
     }
 }

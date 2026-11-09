@@ -1,0 +1,90 @@
+classDiagram
+    direction LR
+
+    class IStats {
+        <<interface>>
+        +float Speed
+        +float Damage
+        +float FireDelay
+        +float ShotSpeed
+        +float Range
+        +float TearSize
+        +int MaxHealth
+    }
+
+    class BaseStats {
+        +float Speed
+        +float Damage
+        +float FireDelay
+        +float ShotSpeed
+        +float Range
+        +float TearSize
+        +int MaxHealth
+    }
+
+    class StatsDecorator {
+        <<abstract>>
+        #IStats Inner
+        +float Speed
+        +float Damage
+        +float FireDelay
+        +float ShotSpeed
+        +float Range
+        +float TearSize
+        +int MaxHealth
+    }
+
+    class DamageUpDecorator {
+        +float Damage
+        +float TearSize
+    }
+    class TearsUpDecorator {
+        +float FireDelay
+    }
+    class SpeedUpDecorator {
+        +float Speed
+    }
+    class RangeUpDecorator {
+        +float Range
+        +float ShotSpeed
+    }
+    class HeartContainerDecorator {
+        +int MaxHealth
+    }
+    class GlassCannonDecorator {
+        +float Damage
+        +float TearSize
+        +int MaxHealth
+    }
+
+    class Player {
+        +IStats Stats
+        +List~ItemKind~ Items
+        +GiveItem(ItemKind item)
+    }
+
+    class ItemCatalog {
+        <<static>>
+        +Name(ItemKind kind) string
+        +Decorate(ItemKind kind, IStats stats) IStats
+    }
+
+    class World {
+        -UpdatePlayers(float dt)
+        +BuildSnapshot() Snapshot
+    }
+
+    IStats <|.. BaseStats
+    IStats <|.. StatsDecorator
+    StatsDecorator o--> "1" IStats : inner (wraps)
+    StatsDecorator <|-- DamageUpDecorator
+    StatsDecorator <|-- TearsUpDecorator
+    StatsDecorator <|-- SpeedUpDecorator
+    StatsDecorator <|-- RangeUpDecorator
+    StatsDecorator <|-- HeartContainerDecorator
+    StatsDecorator <|-- GlassCannonDecorator
+
+    Player --> "1" IStats : outermost layer
+    Player ..> ItemCatalog : GiveItem wraps stats
+    ItemCatalog ..> StatsDecorator : creates
+    World ..> IStats : reads stats

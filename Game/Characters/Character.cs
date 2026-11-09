@@ -7,12 +7,13 @@ namespace Isaac.Game.Characters;
 /// PROTOTYPE pattern, the Concrete Prototype: a playable character's starting loadout.
 /// Characters differ only in data (stats and starting items), so instead of one subclass per
 /// character, each character is a configured instance that new players are cloned from.
-/// A clone becomes the player's own live loadout: picking up items changes its
-/// <see cref="Stats"/> and <see cref="Items"/>, which is why a clone must not share them.
+/// A clone becomes the player's own live loadout: picking up items wraps its <see cref="Stats"/>
+/// in a decorator (DECORATOR pattern) and adds to its <see cref="Items"/>, which is why a clone
+/// must not share them.
 /// </summary>
 public sealed class Character : IPrototype<Character>
 {
-    public Character(string name, Stats stats)
+    public Character(string name, IStats stats)
         : this(name, stats, new List<ItemKind>())
     {
     }
@@ -27,7 +28,7 @@ public sealed class Character : IPrototype<Character>
     }
 
     /// <summary>Rebuilds a character from parts whose item effects are already in <paramref name="stats"/>.</summary>
-    internal Character(string name, Stats stats, List<ItemKind> items)
+    internal Character(string name, IStats stats, List<ItemKind> items)
     {
         Name = name;
         Stats = stats;
@@ -35,12 +36,12 @@ public sealed class Character : IPrototype<Character>
     }
 
     public string Name { get; }
-    public Stats Stats { get; }
+    public IStats Stats { get; private set; }
     public List<ItemKind> Items { get; }
 
     public void AddItem(ItemKind item)
     {
-        Stats.Apply(item);
+        Stats = ItemCatalog.Decorate(item, Stats);
         Items.Add(item);
     }
 
@@ -48,7 +49,7 @@ public sealed class Character : IPrototype<Character>
     public Character ShallowClone() => (Character)MemberwiseClone();
 
     /// <summary>
-    /// Also copies the Stats and the item list. The name is shared on purpose: strings are
+    /// Also copies the Stats (every decorator layer) and the item list. The name is shared on purpose: strings are
     /// immutable, so no one can change it through either copy.
     /// </summary>
     public Character DeepClone() => new(this);

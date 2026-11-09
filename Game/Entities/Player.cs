@@ -21,7 +21,7 @@ public sealed class Player
     public Character Character { get; }
     public Vector2 Pos;
     public Vector2 Vel;
-    public Stats Stats => Character.Stats;
+    public IStats Stats => Character.Stats;
     public List<ItemKind> Items => Character.Items;
     public int Health;               // half hearts
     public float FireCooldown;

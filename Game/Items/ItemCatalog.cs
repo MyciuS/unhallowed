@@ -10,7 +10,7 @@ public enum ItemKind : byte
     GlassCannon,
 }
 
-/// <summary>Item list and display names. The stat changes live in <see cref="Stats.Apply"/>.</summary>
+/// <summary>Item list, display names, and which stats decorator each item adds.</summary>
 public static class ItemCatalog
 {
     public static readonly ItemKind[] All = Enum.GetValues<ItemKind>();
@@ -24,5 +24,17 @@ public static class ItemCatalog
         ItemKind.HeartContainer => "Heart Container",
         ItemKind.GlassCannon => "Glass Cannon",
         _ => kind.ToString(),
+    };
+
+    /// <summary>Wraps <paramref name="stats"/> in the decorator for <paramref name="kind"/>.</summary>
+    public static IStats Decorate(ItemKind kind, IStats stats) => kind switch
+    {
+        ItemKind.DamageUp => new DamageUpDecorator(stats),
+        ItemKind.TearsUp => new TearsUpDecorator(stats),
+        ItemKind.SpeedUp => new SpeedUpDecorator(stats),
+        ItemKind.RangeUp => new RangeUpDecorator(stats),
+        ItemKind.HeartContainer => new HeartContainerDecorator(stats),
+        ItemKind.GlassCannon => new GlassCannonDecorator(stats),
+        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
     };
 }

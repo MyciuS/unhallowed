@@ -30,7 +30,7 @@ public static class PrototypeDemo
         Console.WriteLine();
         Console.WriteLine("== Cloning through the Prototype interface ==");
         Console.WriteLine("  the caller only has IPrototype<object> references and never names a concrete class");
-        IPrototype<object>[] prototypes = [new Character("Isaac", new Stats()), new Stats { Damage = 9f }];
+        IPrototype<object>[] prototypes = [new Character("Isaac", new BaseStats()), new BaseStats { Damage = 9f }];
         foreach (var prototype in prototypes)
         {
             object copy = prototype.DeepClone();
@@ -41,7 +41,7 @@ public static class PrototypeDemo
     private static void CompareSpeed()
     {
         const int count = 50_000;
-        var prototype = new Character("Cain", new Stats { Speed = 300f, Damage = 3f });
+        var prototype = new Character("Cain", new BaseStats { Speed = 300f, Damage = 3f });
         prototype.AddItem(ItemKind.RangeUp);
 
         Console.WriteLine();
@@ -72,14 +72,20 @@ public static class PrototypeDemo
         Console.WriteLine($"  {label,-38}{bestMs,10:0.0}{bestMs * 1_000_000 / count,12:0}{bytes / count,14}");
     }
 
-    private sealed record CharacterData(string Name, Stats Stats, List<ItemKind> Items);
+    private sealed record CharacterData(string Name, BaseStats Stats, List<ItemKind> Items);
 
     private static readonly JsonSerializerOptions Json = new() { IncludeFields = true };
 
     // "Streaming": write the object out and read a brand-new one back.
     private static Character ThroughJson(Character c)
     {
-        string json = JsonSerializer.Serialize(new CharacterData(c.Name, c.Stats, c.Items), Json);
+        // The decorator chain is flattened into plain values, which already include the items' effects.
+        var flat = new BaseStats
+        {
+            Speed = c.Stats.Speed, Damage = c.Stats.Damage, FireDelay = c.Stats.FireDelay, ShotSpeed = c.Stats.ShotSpeed,
+            Range = c.Stats.Range, TearSize = c.Stats.TearSize, MaxHealth = c.Stats.MaxHealth,
+        };
+        string json = JsonSerializer.Serialize(new CharacterData(c.Name, flat, c.Items), Json);
         var data = JsonSerializer.Deserialize<CharacterData>(json, Json)!;
         return new Character(data.Name, data.Stats, data.Items);
     }
@@ -99,7 +105,7 @@ public static class PrototypeDemo
 
     private static void Compare(string title, Func<Character, Character> copy)
     {
-        var prototype = new Character("Cain", new Stats { Speed = 300f, Damage = 3f });
+        var prototype = new Character("Cain", new BaseStats { Speed = 300f, Damage = 3f });
         prototype.AddItem(ItemKind.RangeUp);
         var clone = copy(prototype);
 
@@ -115,6 +121,7 @@ public static class PrototypeDemo
             Console.WriteLine($"  {label,-15}0x{a:X16}   0x{b:X16}   {(same ? "YES (shared)" : "no")}");
 
         float damageBefore = prototype.Stats.Damage;
+        int itemCountBefore = prototype.Items.Count;
         string itemsBefore = string.Join(", ", prototype.Items);
         clone.AddItem(ItemKind.DamageUp);
         var next = copy(prototype);
@@ -124,7 +131,9 @@ public static class PrototypeDemo
         Console.WriteLine($"  prototype damage {damageBefore:0.0} -> {prototype.Stats.Damage:0.0}, " +
                           $"items [{itemsBefore}] -> [{string.Join(", ", prototype.Items)}]");
         Console.WriteLine($"  the next clone starts with damage {next.Stats.Damage:0.0} and {next.Items.Count} item(s)");
-        Console.WriteLine(ReferenceEquals(prototype.Stats, clone.Stats)
+        // The pickup wraps only the clone's own stats reference in a decorator, so a shared item list is what leaks.
+        bool leaked = prototype.Items.Count != itemCountBefore || prototype.Stats.Damage != damageBefore;
+        Console.WriteLine(leaked
             ? "  => the pickup leaked into the prototype and into every later clone"
             : "  => the clone is independent: the prototype and later clones are unchanged");
     }
