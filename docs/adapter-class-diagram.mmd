@@ -1,0 +1,45 @@
+classDiagram
+    direction LR
+
+    class ILogger {
+        <<interface>>
+        +IsEnabled(LogLevel level) bool
+        +BeginScope~TState~(TState state) IDisposable
+        +Log~TState~(LogLevel level, EventId eventId, TState state, Exception exception, Func formatter) void
+    }
+    class GameLoggerAdapter {
+        -GameLogger logger
+        -string categoryName
+        +GameLoggerAdapter(GameLogger logger, string categoryName)
+        +IsEnabled(LogLevel level) bool
+        +BeginScope~TState~(TState state) IDisposable
+        +Log~TState~(LogLevel level, EventId eventId, TState state, Exception exception, Func formatter) void
+    }
+    class GameLogger {
+        -GameLogger()
+        +GameLogger Instance$
+        +Log(string message) void
+    }
+    class ILoggerProvider {
+        <<interface>>
+        +CreateLogger(string categoryName) ILogger
+        +Dispose()
+    }
+    class GameLoggerProvider {
+        -GameLogger logger
+        +GameLoggerProvider(GameLogger logger)
+        +CreateLogger(string categoryName) ILogger
+        +Dispose()
+    }
+    class HostSession
+
+    ILogger <|.. GameLoggerAdapter
+    ILoggerProvider <|.. GameLoggerProvider
+    GameLoggerAdapter --> "1" GameLogger : wraps and translates calls
+    GameLoggerProvider --> "1" GameLogger : shares
+    GameLoggerProvider ..> GameLoggerAdapter : creates per category
+    HostSession ..> GameLoggerProvider : registers
+    note for ILogger "Target: interface expected by ASP.NET Core and SignalR"
+    note for GameLoggerAdapter "Adapter"
+    note for GameLogger "Adaptee: existing text logger"
+    note for GameLoggerProvider "Integration: supplies adapters to framework logging"
