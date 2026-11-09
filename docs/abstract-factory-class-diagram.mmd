@@ -43,6 +43,7 @@ classDiagram
         Chaser
         Shooter
         Rusher
+        Skitter
         Boss
     }
 
@@ -53,6 +54,7 @@ classDiagram
         +CreateChaserEnemy(Vector2 pos, int floor) Enemy
         +CreateShooterEnemy(Vector2 pos, int floor) Enemy
         +CreateRusherEnemy(Vector2 pos, int floor) Enemy
+        +CreateSkitterEnemy(Vector2 pos, int floor) Enemy
         +CreateBoss(Vector2 pos, int floor) Enemy
     }
 
@@ -62,6 +64,7 @@ classDiagram
         +CreateChaserEnemy(Vector2 pos, int floor) Enemy
         +CreateShooterEnemy(Vector2 pos, int floor) Enemy
         +CreateRusherEnemy(Vector2 pos, int floor) Enemy
+        +CreateSkitterEnemy(Vector2 pos, int floor) Enemy
         +CreateBoss(Vector2 pos, int floor) Enemy
     }
 
@@ -71,6 +74,7 @@ classDiagram
         +CreateChaserEnemy(Vector2 pos, int floor) Enemy
         +CreateShooterEnemy(Vector2 pos, int floor) Enemy
         +CreateRusherEnemy(Vector2 pos, int floor) Enemy
+        +CreateSkitterEnemy(Vector2 pos, int floor) Enemy
         +CreateBoss(Vector2 pos, int floor) Enemy
     }
 
@@ -92,10 +96,12 @@ classDiagram
     class GaperEnemy
     class SpitterEnemy
     class ChargerEnemy
+    class SpiderEnemy
     class MonstroEnemy
     class BossRushFlyEnemy
     class BossRushGaperEnemy
     class BossRushSpitterEnemy
+    class BossRushSpiderEnemy
     class BossRushMonstroEnemy
 
     class EnemyKind {
@@ -104,6 +110,7 @@ classDiagram
         Gaper
         Spitter
         Charger
+        Spider
         Monstro
     }
 
@@ -140,10 +147,12 @@ classDiagram
     Enemy <|-- GaperEnemy
     Enemy <|-- SpitterEnemy
     Enemy <|-- ChargerEnemy
+    Enemy <|-- SpiderEnemy
     Enemy <|-- MonstroEnemy
     FlyEnemy <|-- BossRushFlyEnemy
     GaperEnemy <|-- BossRushGaperEnemy
     SpitterEnemy <|-- BossRushSpitterEnemy
+    SpiderEnemy <|-- BossRushSpiderEnemy
     MonstroEnemy <|-- BossRushMonstroEnemy
 
     World --> Floor : current floor
@@ -160,10 +169,12 @@ classDiagram
     StandardEnemyFactory ..> GaperEnemy : creates
     StandardEnemyFactory ..> SpitterEnemy : creates
     StandardEnemyFactory ..> ChargerEnemy : creates
+    StandardEnemyFactory ..> SpiderEnemy : creates
     StandardEnemyFactory ..> MonstroEnemy : creates
     BossRushEnemyFactory ..> BossRushFlyEnemy : creates
     BossRushEnemyFactory ..> BossRushGaperEnemy : creates
     BossRushEnemyFactory ..> BossRushSpitterEnemy : creates
+    BossRushEnemyFactory ..> BossRushSpiderEnemy : creates
     BossRushEnemyFactory ..> BossRushMonstroEnemy : creates
     Enemy --> EnemyKind : kind
     StandardFloorBuilder *-- StandardEnemyFactory

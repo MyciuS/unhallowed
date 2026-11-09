@@ -23,6 +23,7 @@ public struct EnemyView
     public byte Radius;
     public byte HpPercent;
     public bool Flash;
+    public byte Height; // pixels above the ground
 }
 
 public struct TearView

@@ -8,6 +8,7 @@ public enum EnemyRole
     Chaser,
     Shooter,
     Rusher,
+    Skitter,
     Boss,
 }
 
@@ -30,6 +31,8 @@ public interface IEnemyFactory
 
     Enemy CreateRusherEnemy(Vector2 pos, int floor);
 
+    Enemy CreateSkitterEnemy(Vector2 pos, int floor);
+
     Enemy CreateBoss(Vector2 pos, int floor);
 }
 
@@ -42,6 +45,7 @@ public static class EnemyFactoryExtensions
             EnemyRole.Chaser => factory.CreateChaserEnemy(spawn.Pos, floor),
             EnemyRole.Shooter => factory.CreateShooterEnemy(spawn.Pos, floor),
             EnemyRole.Rusher => factory.CreateRusherEnemy(spawn.Pos, floor),
+            EnemyRole.Skitter => factory.CreateSkitterEnemy(spawn.Pos, floor),
             EnemyRole.Boss => factory.CreateBoss(spawn.Pos, floor),
             _ => throw new ArgumentOutOfRangeException(nameof(spawn)),
         };
@@ -56,6 +60,7 @@ public sealed class StandardEnemyFactory : IEnemyFactory
         EnemyRole.Chaser,
         EnemyRole.Shooter,
         EnemyRole.Rusher,
+        EnemyRole.Skitter,
     ];
 
     public IReadOnlyList<EnemyRole> RegularRoles => Roles;
@@ -68,6 +73,8 @@ public sealed class StandardEnemyFactory : IEnemyFactory
 
     public Enemy CreateRusherEnemy(Vector2 pos, int floor) => new ChargerEnemy(pos, floor);
 
+    public Enemy CreateSkitterEnemy(Vector2 pos, int floor) => new SpiderEnemy(pos, floor);
+
     public Enemy CreateBoss(Vector2 pos, int floor) => new MonstroEnemy(pos, floor);
 }
 
@@ -79,6 +86,7 @@ public sealed class BossRushEnemyFactory : IEnemyFactory
         EnemyRole.Swarm,
         EnemyRole.Chaser,
         EnemyRole.Shooter,
+        EnemyRole.Skitter,
         EnemyRole.Boss,
     ];
 
@@ -91,6 +99,8 @@ public sealed class BossRushEnemyFactory : IEnemyFactory
     public Enemy CreateShooterEnemy(Vector2 pos, int floor) => new BossRushSpitterEnemy(pos, floor);
 
     public Enemy CreateRusherEnemy(Vector2 pos, int floor) => new BossRushGaperEnemy(pos, floor);
+
+    public Enemy CreateSkitterEnemy(Vector2 pos, int floor) => new BossRushSpiderEnemy(pos, floor);
 
     public Enemy CreateBoss(Vector2 pos, int floor) => new BossRushMonstroEnemy(pos, floor);
 }
