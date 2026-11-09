@@ -1,6 +1,7 @@
 using System.Numerics;
 using Isaac.Core;
 using Isaac.Game;
+using Isaac.Game.Commands;
 using Isaac.Game.Entities;
 using Isaac.Game.Items;
 using Isaac.Net;
@@ -13,6 +14,8 @@ namespace Isaac.DevTools;
 /// In-game developer console, opened with F6. The Cheats tab changes the <see cref="World"/>
 /// directly, so it only works where the World lives: in singleplayer and for the host of a
 /// co-op game. The Patterns tab lists the course's required patterns and runs their demos.
+/// COMMAND pattern, the Client: the undoable cheats are made into commands and run through a
+/// <see cref="CommandHistory"/>, so Undo and Redo (Ctrl+Z, Ctrl+Y) can step back through them.
 /// </summary>
 public sealed class DevConsole
 {
@@ -43,6 +46,8 @@ public sealed class DevConsole
     ];
 
     private readonly DemoRunner _demos = new();
+    private readonly CommandHistory _history = new();
+    private World? _historyWorld; // the commands in the history act on this World's players
     private Tab _tab = Tab.Cheats;
     private int _selected;
     private int _scroll;
@@ -104,6 +109,13 @@ public sealed class DevConsole
             return;
         }
 
+        if (world != _historyWorld)
+        {
+            _history.Clear();
+            _historyWorld = world;
+        }
+        HandleUndoKeys();
+
         world.Players.TryGetValue(session.LocalPlayerId, out var me);
         DrawPlayerColumn(world, me);
         DrawWorldColumn(session, world);
@@ -128,17 +140,11 @@ public sealed class DevConsole
         foreach (var (label, item) in ItemCheats)
         {
             if (Button(new Rectangle(x, y, ButtonW, ButtonH), label, enabled: me is { Alive: true }))
-            {
-                world.GiveItem(me!, item);
-                _status = $"Gave {label}";
-            }
+                Run(new GiveItemCommand(world, me!, item));
             y += ButtonH + Gap;
         }
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Full heal / revive", enabled: me != null))
-        {
-            world.Heal(me!);
-            _status = "Healed";
-        }
+            Run(new HealCommand(world, me!));
     }
 
     private void DrawWorldColumn(IGameSession session, World world)
@@ -162,14 +168,13 @@ public sealed class DevConsole
         }
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Reveal map"))
-        {
-            world.RevealMap();
-            _status = "Map revealed";
-        }
+            Run(new RevealMapCommand(world));
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Restart run"))
         {
             session.RequestRestart();
+            // The restart replaces every player, so the old commands have nothing left to undo.
+            _history.Clear();
             _status = "Run restarted";
         }
     }
@@ -180,10 +185,62 @@ public sealed class DevConsole
         Raylib.DrawText("TOGGLES", x, Top, 16, Renderer.TextDim);
         int y = Top + 28;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), $"God mode: {OnOff(world.GodMode)}", world.GodMode))
-            world.GodMode = !world.GodMode;
+            Run(new ToggleCheatCommand(world, Cheat.GodMode));
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), $"One-shot kills: {OnOff(world.OneShotKills)}", world.OneShotKills))
-            world.OneShotKills = !world.OneShotKills;
+            Run(new ToggleCheatCommand(world, Cheat.OneShotKills));
+        y += ButtonH + Gap;
+        DrawHistory(x, y);
+    }
+
+    // -------------------------------------------------------------- commands
+
+    private void Run(ICommand command)
+    {
+        _history.Execute(command);
+        _status = command.Name;
+    }
+
+    private void Undo()
+    {
+        var command = _history.Undo();
+        if (command != null) _status = $"Undid: {command.Name}";
+    }
+
+    private void Redo()
+    {
+        var command = _history.Redo();
+        if (command != null) _status = $"Redid: {command.Name}";
+    }
+
+    private void HandleUndoKeys()
+    {
+        bool ctrl = Raylib.IsKeyDown(KeyboardKey.LeftControl) || Raylib.IsKeyDown(KeyboardKey.RightControl);
+        if (!ctrl) return;
+        if (Raylib.IsKeyPressed(KeyboardKey.Z)) Undo();
+        else if (Raylib.IsKeyPressed(KeyboardKey.Y)) Redo();
+    }
+
+    /// <summary>Undo and Redo buttons, and the last few commands, newest first.</summary>
+    private void DrawHistory(int x, int y)
+    {
+        int half = (ButtonW - Gap) / 2;
+        if (Button(new Rectangle(x, y, half, ButtonH), "Undo (Ctrl+Z)", enabled: _history.CanUndo)) Undo();
+        if (Button(new Rectangle(x + half + Gap, y, half, ButtonH), "Redo (Ctrl+Y)", enabled: _history.CanRedo)) Redo();
+        y += ButtonH + Gap;
+        Raylib.DrawText("LAST ACTIONS", x, y, 14, Renderer.TextDim);
+        y += 20;
+        foreach (var command in _history.Done.Take(4))
+        {
+            Raylib.DrawText(command.Name, x, y, 14, Renderer.Text);
+            y += 18;
+        }
+        if (!_history.CanUndo)
+        {
+            Raylib.DrawText("Nothing to undo yet.", x, y, 14, Renderer.TextDim);
+            Raylib.DrawText("Kill all, boss room, next floor and", x, y + 22, 12, Renderer.TextDim);
+            Raylib.DrawText("restart change the room, so no undo.", x, y + 36, 12, Renderer.TextDim);
+        }
     }
 
     private static string OnOff(bool on) => on ? "ON" : "OFF";

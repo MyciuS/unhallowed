@@ -30,4 +30,5 @@ cp "$WORK/images/Isaac_Co-op_-_main_classes.png" "$ROOT/docs/uml/main-class-diag
 cp "$WORK/images/Isaac_Co-op_-_class_diagram.png" "$ROOT/docs/uml/game-class-diagram.png"
 cp "$WORK/images/Prototype_-_after.png" "$ROOT/docs/uml/prototype-after.png"
 cp "$WORK/images/Prototype_-_before.png" "$ROOT/docs/uml/prototype-before.png"
+cp "$WORK/images/Command_-_class_diagram.png" "$ROOT/docs/uml/command-class-diagram.png"
 echo "done: docs/uml/Isaac-Coop-model.mdzip and the diagram PNGs are up to date"

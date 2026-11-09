@@ -53,7 +53,7 @@ docker compose logs -f         # joins, leaves, restarts
 
 **Controls:** WASD to move, arrow keys to shoot, Esc to go back to the menu, and R to restart after a game over (host only).
 
-**Developer console:** F6 opens it, F6 or Esc closes it. The Cheats tab (items, heal, kill all enemies, boss room, next floor, reveal map, god mode, one-shot kills) only works in singleplayer or for the host of a co-op game, since the host runs the only real copy of the game. The Patterns tab lists the twelve required patterns, shows which ones are in the current build, and runs their `--demo`s in-game.
+**Developer console:** F6 opens it, F6 or Esc closes it. The Cheats tab (items, heal, kill all enemies, boss room, next floor, reveal map, god mode, one-shot kills) only works in singleplayer or for the host of a co-op game, since the host runs the only real copy of the game. Items, heal, reveal map and the two toggles can be undone and redone with the Undo/Redo buttons or Ctrl+Z / Ctrl+Y. The Patterns tab lists the twelve required patterns, shows which ones are in the current build, and runs their `--demo`s in-game.
 
 ## Gameplay
 
@@ -90,7 +90,7 @@ The host is authoritative and the clients only render ("dumb clients").
 
 ## Design patterns
 
-Eight patterns are implemented so far. The rest of the code is intentionally plain, so other
+Nine patterns are implemented so far. The rest of the code is intentionally plain, so other
 team members can add their own patterns.
 
 | Pattern | Where | What it does |
@@ -103,6 +103,7 @@ team members can add their own patterns.
 | **Prototype** | `Core/IPrototype.cs`, `Game/Characters/`, `Game/Items/Stats.cs` | Each playable character (Isaac, Magdalene, Cain, Judas) is a configured `Character` prototype in a `CharacterRegistry`. Every player gets a deep clone of one, which becomes their own stats and item list. `dotnet run -- --demo prototype` compares shallow and deep copies with memory addresses. |
 | **Bridge** | `Rendering/` | HUD widgets (`HudWidget` Abstraction, refined by `MinimapWidget` and `BossBarWidget`) decide what to show and hand every shape to an `ICanvas` (Implementor). `RaylibCanvas` draws into the game window and `SvgCanvas` writes an SVG image, so widgets and devices can be added independently. `dotnet run -- --demo bridge` draws the same widgets on both canvases. |
 | **Facade** | `Game/Dungeon/DungeonFacade.cs` | `DungeonFacade` is the one entry point to the dungeon subsystems (`FloorDirector`, `StandardFloorBuilder`, `BossRushFloorBuilder`, the floor's `IEnemyFactory`, `PickupFactory`). Its clients `World` and `LootDropper` only call `CreateFloor`, `SpawnEnemies` and `DropClearReward`. `dotnet run -- --demo facade` shows each call and both clients. |
+| **Command** | `Game/Commands/`, `DevTools/DevConsole.cs` | Each undoable cheat of the F6 console is a command object: `ICommand` (Command) has `Execute()` and `Undo()`, and `GiveItemCommand`, `HealCommand`, `ToggleCheatCommand` and `RevealMapCommand` (Concrete Commands) save what they change just before changing it, then call their Receiver, the `World` or a `Player`. `CommandHistory` (Invoker) runs them and keeps undo and redo stacks without knowing what any command does. `DevConsole` (Client) creates the commands from its buttons and offers Undo/Redo (Ctrl+Z, Ctrl+Y). `dotnet run -- --demo command` executes, undoes and redoes a sequence of cheats. |
 
 The earlier implementations of State, Command, Factory, Strategy, Composite and Object Pool are in
 `old-patterns/` for reference. That folder is not compiled.
@@ -112,7 +113,6 @@ Plain code that other patterns could replace:
 | Code | Pattern that would fit |
 |---|---|
 | `IsaacGame` switches between the menu and the game with `if (_session == null)` | State |
-| `PlayerInput` is a plain struct of move and shoot directions | Command |
 | `Enemy.Update` chooses movement and attacks with a `switch` on the kind, and the boss uses an `_enraged` flag | Strategy (and Composite for combined attacks) |
 | `Stats.Apply` changes the numbers directly when an item is picked up | Decorator |
 | `World.SpawnTear` allocates a new `Tear` for every shot | Object Pool |
@@ -125,6 +125,7 @@ Core/        config, event bus, logger and the prototype interface
 Demos/       console demonstrations of the patterns (--demo)
 DevTools/    F6 developer console: cheats and the pattern checklist
 Game/        World simulation, player input, events and listeners
+  Commands/  undoable dev console cheats (command pattern)
   Characters/ character prototypes and their registry
   Dungeon/   rooms, floor director, the two floor builders and the dungeon facade
   Entities/  player, enemies (with their AI), tears, pickups

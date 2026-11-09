@@ -11,7 +11,8 @@ Schema), so this folder does it instead:
    - all classes with their members
    - generalizations, interface realizations and associations, with composition/aggregation where
      the code owns the object
-   - three laid-out class diagrams: the whole game, *Prototype - before* and *Prototype - after*
+   - laid-out class diagrams: the whole game, the main classes, *Prototype - before*, *Prototype - after*
+     and *Command - class diagram*
 
    It saves `docs/uml/Isaac-Coop-model.mdzip` and exports the diagrams as PNG.
 

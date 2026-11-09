@@ -30,7 +30,7 @@ public static class PatternCatalog
         new("i", "Decorator", "At least 3 levels of decoration",
             "Game/Items/ItemDecorators.cs", ["StatsDecorator"]),
         new("j", "Command", "Commands can be undone with Undo()",
-            "-", ["Undo()"]),
+            "Game/Commands/", ["ICommand", "CommandHistory", "Undo()"]),
         new("k", "Facade", "At least 2 client classes and at least 3 subsystem classes",
             "Game/Dungeon/DungeonFacade.cs", ["DungeonFacade"]),
         new("l", "Bridge", "At least 2 abstractions and 2 implementations; explain how it differs from Strategy and Adapter",
