@@ -84,10 +84,13 @@ classDiagram
         +Attack(Enemy self, Player? target, World world, float dt)
     }
 
-    class AimedShotAttack {
+    class CooldownAttack {
+        <<abstract>>
         -float cooldown
-        -float tearSpeed
         -float timer
+    }
+    class AimedShotAttack {
+        -float tearSpeed
     }
     class LandingRingAttack {
         -int count
@@ -95,9 +98,7 @@ classDiagram
     }
     class SpitSprayAttack {
         -int count
-        -float cooldown
         -float spreadDegrees
-        -float timer
     }
 
     Enemy <|-- FlyEnemy
@@ -119,9 +120,10 @@ classDiagram
     TakeCoverMovement *-- PathFollower
     TakeCoverMovement *-- KeepDistanceMovement : when exposed
 
-    IAttackStrategy <|.. AimedShotAttack
+    IAttackStrategy <|.. CooldownAttack
     IAttackStrategy <|.. LandingRingAttack
-    IAttackStrategy <|.. SpitSprayAttack
+    CooldownAttack <|-- AimedShotAttack
+    CooldownAttack <|-- SpitSprayAttack
 
     Enemy o--> "1" IMovementStrategy : moves with
     Enemy o--> "0..*" IAttackStrategy : attacks with

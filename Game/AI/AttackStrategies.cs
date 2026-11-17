@@ -12,22 +12,49 @@ public interface IAttackStrategy
     void Attack(Enemy self, Player? target, World world, float dt);
 }
 
-/// <summary>Shoots a single tear at the nearest player, but only when no rock is in the way.</summary>
-public sealed class AimedShotAttack(float cooldown, float tearSpeed) : IAttackStrategy
+/// <summary>
+/// TEMPLATE METHOD pattern, the Abstract Class: an attack that fires on a cooldown.
+/// <see cref="Attack"/> is the template method. It fixes the steps every cooldown attack goes
+/// through (run the timer down, ask <see cref="CanFire"/>, restart the timer, <see cref="Fire"/>)
+/// and is not virtual, so subclasses fill in steps but cannot change their order.
+/// </summary>
+public abstract class CooldownAttack(float cooldown) : IAttackStrategy
 {
     private readonly float _cooldown = cooldown;
     // Random first delay so a room full of shooters does not fire in sync.
     private float _timer = cooldown * (0.5f + Random.Shared.NextSingle());
 
+    /// <summary>Seconds until the attack is ready. At 0 or below it fires as soon as <see cref="CanFire"/> allows.</summary>
+    public float TimeLeft => _timer;
+
     public void Attack(Enemy self, Player? target, World world, float dt)
     {
         _timer -= dt;
-        // The timer keeps running out, so the shot fires as soon as the player comes into view.
-        if (_timer > 0 || target == null || self.Height > 0 || !CanHit(world, self.Pos, target.Pos))
+        // The timer keeps running out while CanFire says no, so the attack fires the moment it says yes.
+        if (_timer > 0 || target == null || !CanFire(self, target, world))
             return;
         _timer = _cooldown;
-        world.SpawnTear(self.Pos, Steering.Toward(self.Pos, target.Pos) * tearSpeed, 1, 8f, 2.5f, fromEnemy: true);
+        Fire(self, target, world);
     }
+
+    /// <summary>Hook: an extra condition for firing once the cooldown is over. By default there is none.</summary>
+    protected virtual bool CanFire(Enemy self, Player target, World world) => true;
+
+    /// <summary>Primitive operation: spawns this attack's tears.</summary>
+    protected abstract void Fire(Enemy self, Player target, World world);
+}
+
+/// <summary>
+/// TEMPLATE METHOD pattern, a Concrete Class: shoots a single tear at the nearest player,
+/// but only when no rock is in the way and it is not in the air.
+/// </summary>
+public sealed class AimedShotAttack(float cooldown, float tearSpeed) : CooldownAttack(cooldown)
+{
+    protected override bool CanFire(Enemy self, Player target, World world) =>
+        self.Height <= 0 && CanHit(world, self.Pos, target.Pos);
+
+    protected override void Fire(Enemy self, Player target, World world) =>
+        world.SpawnTear(self.Pos, Steering.Toward(self.Pos, target.Pos) * tearSpeed, 1, 8f, 2.5f, fromEnemy: true);
 
     /// <summary>
     /// True if a tear fired from <paramref name="from"/> would reach <paramref name="to"/>.
@@ -56,19 +83,15 @@ public sealed class LandingRingAttack(int count, float tearSpeed) : IAttackStrat
     }
 }
 
-/// <summary>Spits a messy cone of tears of different sizes and speeds at the player.</summary>
+/// <summary>
+/// TEMPLATE METHOD pattern, a Concrete Class: spits a messy cone of tears of different sizes and
+/// speeds at the player. It keeps the default <see cref="CooldownAttack.CanFire"/>, so rocks do not stop it.
+/// </summary>
 public sealed class SpitSprayAttack(int count, float cooldown, float spreadDegrees, float minSpeed, float maxSpeed)
-    : IAttackStrategy
+    : CooldownAttack(cooldown)
 {
-    private readonly float _cooldown = cooldown;
-    private float _timer = cooldown * (0.5f + Random.Shared.NextSingle());
-
-    public void Attack(Enemy self, Player? target, World world, float dt)
+    protected override void Fire(Enemy self, Player target, World world)
     {
-        _timer -= dt;
-        if (_timer > 0 || target == null)
-            return;
-        _timer = _cooldown;
         var aim = Steering.Toward(self.Pos, target.Pos);
         float baseAngle = MathF.Atan2(aim.Y, aim.X);
         float spread = spreadDegrees * MathF.PI / 180f;

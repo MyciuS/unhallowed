@@ -4,7 +4,7 @@ using Isaac.Demos;
 namespace Isaac.DevTools;
 
 /// <summary>
-/// The twelve patterns the course requires. Whether each one is in this build is found by
+/// The patterns the course requires. Whether each one is in this build is found by
 /// reflection, so the list stays right as team branches get merged.
 /// </summary>
 public static class PatternCatalog
@@ -35,6 +35,8 @@ public static class PatternCatalog
             "Game/Dungeon/DungeonFacade.cs", ["DungeonFacade"]),
         new("l", "Bridge", "At least 2 abstractions and 2 implementations; explain how it differs from Strategy and Adapter",
             "Rendering/HudWidget.cs, ICanvas.cs", ["HudWidget", "ICanvas"]),
+        new("m", "Template Method", "At least 2 concrete classes, sealed (final)",
+            "Game/AI/AttackStrategies.cs", ["CooldownAttack"]),
     ];
 
     private static readonly HashSet<string> Names = CollectNames();
