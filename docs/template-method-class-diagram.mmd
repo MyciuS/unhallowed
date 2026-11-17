@@ -1,0 +1,53 @@
+classDiagram
+    direction LR
+
+    class IAttackStrategy {
+        <<interface>>
+        +Attack(Enemy self, Player? target, World world, float dt)
+    }
+
+    class CooldownAttack {
+        <<abstract>>
+        -float cooldown
+        -float timer
+        +float TimeLeft
+        +Attack(Enemy self, Player? target, World world, float dt)
+        #CanFire(Enemy self, Player target, World world) bool
+        #Fire(Enemy self, Player target, World world)*
+    }
+
+    class AimedShotAttack {
+        <<sealed>>
+        -float tearSpeed
+        #CanFire(Enemy self, Player target, World world) bool
+        #Fire(Enemy self, Player target, World world)
+        +CanHit(World world, Vector2 from, Vector2 to)$ bool
+    }
+
+    class SpitSprayAttack {
+        <<sealed>>
+        -int count
+        -float spreadDegrees
+        -float minSpeed
+        -float maxSpeed
+        #Fire(Enemy self, Player target, World world)
+    }
+
+    class LandingRingAttack {
+        -int count
+        -float tearSpeed
+    }
+
+    class World {
+        +SpawnTear(...)
+        +HasLineOfSight(Vector2 a, Vector2 b) bool
+    }
+
+    note for CooldownAttack "Template method:\ntimer -= dt\nif timer > 0 or no target or !CanFire(): return\ntimer = cooldown\nFire()"
+
+    IAttackStrategy <|.. CooldownAttack
+    IAttackStrategy <|.. LandingRingAttack : fires on landing, not on a cooldown
+    CooldownAttack <|-- AimedShotAttack
+    CooldownAttack <|-- SpitSprayAttack
+    AimedShotAttack ..> World : HasLineOfSight, SpawnTear
+    SpitSprayAttack ..> World : SpawnTear
