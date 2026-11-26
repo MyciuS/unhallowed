@@ -10,6 +10,7 @@ public static class PatternDemos
         ["facade"] = FacadeDemo.Run,
         ["command"] = CommandDemo.Run,
         ["template-method"] = TemplateMethodDemo.Run,
+        ["proxy"] = ProxyDemo.Run,
     };
 
     public static IReadOnlyCollection<string> Names => All.Keys;

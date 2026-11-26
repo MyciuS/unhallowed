@@ -1,6 +1,7 @@
 using System.Numerics;
 using Isaac.Core;
 using Isaac.Game;
+using Isaac.Game.Cheats;
 using Isaac.Game.Commands;
 using Isaac.Game.Entities;
 using Isaac.Game.Items;
@@ -16,6 +17,8 @@ namespace Isaac.DevTools;
 /// co-op game. The Patterns tab lists the course's required patterns and runs their demos.
 /// COMMAND pattern, the Client: the undoable cheats are made into commands and run through a
 /// <see cref="CommandHistory"/>, so Undo and Redo (Ctrl+Z, Ctrl+Y) can step back through them.
+/// PROXY pattern, the Client: every cheat goes through a <see cref="CheatProxy"/>, never straight
+/// to the World, so the cheats can be locked.
 /// </summary>
 public sealed class DevConsole
 {
@@ -48,6 +51,7 @@ public sealed class DevConsole
     private readonly DemoRunner _demos = new();
     private readonly CommandHistory _history = new();
     private World? _historyWorld; // the commands in the history act on this World's players
+    private CheatProxy _cheats = null!; // made together with the history, for the same World
     private Tab _tab = Tab.Cheats;
     private int _selected;
     private int _scroll;
@@ -113,6 +117,7 @@ public sealed class DevConsole
         {
             _history.Clear();
             _historyWorld = world;
+            _cheats = new CheatProxy(world);
         }
         HandleUndoKeys();
 
@@ -140,11 +145,11 @@ public sealed class DevConsole
         foreach (var (label, item) in ItemCheats)
         {
             if (Button(new Rectangle(x, y, ButtonW, ButtonH), label, enabled: me is { Alive: true }))
-                Run(new GiveItemCommand(world, me!, item));
+                Run(new GiveItemCommand(_cheats, me!, item));
             y += ButtonH + Gap;
         }
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Full heal / revive", enabled: me != null))
-            Run(new HealCommand(world, me!));
+            Run(new HealCommand(_cheats, me!));
     }
 
     private void DrawWorldColumn(IGameSession session, World world)
@@ -155,20 +160,25 @@ public sealed class DevConsole
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Kill all enemies", enabled: world.Enemies.Count > 0))
         {
             _status = world.Enemies.Count == 1 ? "Killed 1 enemy" : $"Killed {world.Enemies.Count} enemies";
-            world.KillAllEnemies();
+            _cheats.KillAllEnemies();
+            if (_cheats.Locked) _status = LockedMessage;
         }
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Go to boss room"))
-            _status = world.EnterBossRoom() ? "Entered the boss room" : "No other boss room left to fight on this floor";
+        {
+            _status = _cheats.EnterBossRoom() ? "Entered the boss room" : "No other boss room left to fight on this floor";
+            if (_cheats.Locked) _status = LockedMessage;
+        }
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Next floor"))
         {
-            world.SkipToNextFloor();
+            _cheats.SkipToNextFloor();
             _status = $"Skipped to floor {world.Floor.Number}";
+            if (_cheats.Locked) _status = LockedMessage;
         }
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Reveal map"))
-            Run(new RevealMapCommand(world));
+            Run(new RevealMapCommand(_cheats));
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), "Restart run"))
         {
@@ -185,30 +195,58 @@ public sealed class DevConsole
         Raylib.DrawText("TOGGLES", x, Top, 16, Renderer.TextDim);
         int y = Top + 28;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), $"God mode: {OnOff(world.GodMode)}", world.GodMode))
-            Run(new ToggleCheatCommand(world, Cheat.GodMode));
+            Run(new ToggleCheatCommand(_cheats, Cheat.GodMode));
         y += ButtonH + Gap;
         if (Button(new Rectangle(x, y, ButtonW, ButtonH), $"One-shot kills: {OnOff(world.OneShotKills)}", world.OneShotKills))
-            Run(new ToggleCheatCommand(world, Cheat.OneShotKills));
+            Run(new ToggleCheatCommand(_cheats, Cheat.OneShotKills));
+        y += ButtonH + Gap;
+        if (Button(new Rectangle(x, y, ButtonW, ButtonH), _cheats.Locked ? "Cheats locked" : "Lock cheats", _cheats.Locked))
+        {
+            _cheats.Lock();
+            _status = "Cheats are locked until you quit this game";
+        }
         y += ButtonH + Gap;
         DrawHistory(x, y);
     }
 
     // -------------------------------------------------------------- commands
 
+    private const string LockedMessage = "Blocked: cheats are locked";
+
     private void Run(ICommand command)
     {
+        if (_cheats.Locked)
+        {
+            // The proxy blocks it anyway, but then it would show up in the history
+            // as if it happened, so it is run without saving it.
+            command.Execute();
+            _status = LockedMessage;
+            return;
+        }
         _history.Execute(command);
         _status = command.Name;
     }
 
     private void Undo()
     {
+        // Undo changes the game too, so it is not allowed once cheats are locked.
+        if (_cheats.Locked)
+        {
+            _status = LockedMessage;
+            return;
+        }
         var command = _history.Undo();
         if (command != null) _status = $"Undid: {command.Name}";
     }
 
     private void Redo()
     {
+        // Redo changes the game too, so it is not allowed once cheats are locked.
+        if (_cheats.Locked)
+        {
+            _status = LockedMessage;
+            return;
+        }
         var command = _history.Redo();
         if (command != null) _status = $"Redid: {command.Name}";
     }

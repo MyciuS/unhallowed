@@ -1,0 +1,76 @@
+classDiagram
+    direction LR
+
+    class ICheats {
+        <<interface>>
+        +bool GodMode
+        +bool OneShotKills
+        +KillAllEnemies()
+        +GiveItem(Player player, ItemKind item)
+        +Heal(Player player)
+        +SkipToNextFloor()
+        +EnterBossRoom() bool
+        +RevealMap() List~Room~
+    }
+
+    class World {
+        +bool GodMode
+        +bool OneShotKills
+        +KillAllEnemies()
+        +GiveItem(Player player, ItemKind item)
+        +Heal(Player player)
+        +SkipToNextFloor()
+        +EnterBossRoom() bool
+        +RevealMap() List~Room~
+    }
+
+    class CheatProxy {
+        -ICheats realCheats
+        +bool Locked
+        +Lock()
+        +bool GodMode
+        +bool OneShotKills
+        +KillAllEnemies()
+        +GiveItem(Player player, ItemKind item)
+        +Heal(Player player)
+        +SkipToNextFloor()
+        +EnterBossRoom() bool
+        +RevealMap() List~Room~
+        -IsAllowed(string cheat) bool
+    }
+
+    class DevConsole {
+        -CheatProxy cheats
+        -Run(ICommand command)
+    }
+
+    class GiveItemCommand {
+        -ICheats cheats
+    }
+
+    class HealCommand {
+        -ICheats cheats
+    }
+
+    class ToggleCheatCommand {
+        -ICheats cheats
+    }
+
+    class RevealMapCommand {
+        -ICheats cheats
+    }
+
+    class GameLogger {
+        +Log(string message)
+    }
+
+    ICheats <|.. World
+    ICheats <|.. CheatProxy
+    CheatProxy --> "1" ICheats : realCheats
+    CheatProxy ..> GameLogger : logs used / blocked
+
+    DevConsole *--> "1" CheatProxy : creates for the World
+    GiveItemCommand --> ICheats
+    HealCommand --> ICheats
+    ToggleCheatCommand --> ICheats
+    RevealMapCommand --> ICheats
