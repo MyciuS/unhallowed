@@ -37,6 +37,8 @@ public static class PatternCatalog
             "Rendering/HudWidget.cs, ICanvas.cs", ["HudWidget", "ICanvas"]),
         new("m", "Template Method", "At least 2 concrete classes, sealed (final)",
             "Game/AI/AttackStrategies.cs", ["CooldownAttack"]),
+        new("n", "Proxy", "The proxy and the real object share one interface",
+            "Game/Cheats/", ["ICheats", "CheatProxy"]),
     ];
 
     private static readonly HashSet<string> Names = CollectNames();
